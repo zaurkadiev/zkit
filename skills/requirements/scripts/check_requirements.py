@@ -1,28 +1,17 @@
 #!/usr/bin/env python3
-"""Mechanical consistency check: 02-requirements.md vs 01-concept.md and decisions.md.
-Usage: check_requirements.py <zkit-docs-dir> [--id NN]   (exit 1 if any ERROR). Stdlib only.
-Documents: requirements/NN-<slug>.md and concept/NN-<slug>.md (same NN); older layouts still work."""
+"""Mechanical consistency check: requirements.md vs concept.md and decisions.md of one project.
+Usage: check_requirements.py <project-dir>   (e.g. docs/zkit/mvp; exit 1 if any ERROR). Stdlib only.
+Documents of the project: requirements.md, concept.md, decisions.md, research/R-<n>-<slug>.md."""
 import re, sys, os
 
 d = sys.argv[1] if len(sys.argv) > 1 else "docs/zkit"
 import glob
-def first(*names):
-    for n in names:
-        p = os.path.join(d, n)
-        if os.path.exists(p): return p
-def rdp(p): return open(p, encoding="utf-8").read() if p else None
-args = [a for a in sys.argv[1:] if a != d]
-nn = args[args.index("--id") + 1] if "--id" in args else None   # pass number; default: the newest requirements file
-cands = sorted(glob.glob(os.path.join(d, "requirements", (nn or "[0-9][0-9]") + "-*.md")))
-req_p = cands[-1] if cands else first("02-requirements/requirements.md", "02-requirements.md")
-con_c = glob.glob(os.path.join(d, "concept", os.path.basename(req_p)[:2] + "-*.md")) if cands else []
-con_p = con_c[0] if con_c else first("01-concept/concept.md", "01-concept.md")
-req, con = rdp(req_p), rdp(con_p)
+def rdp(p): return open(p, encoding="utf-8").read() if os.path.exists(p) else None
+req_p, con_p, dec_p = [os.path.join(d, n) for n in ("requirements.md", "concept.md", "decisions.md")]
+req, con, dec = rdp(req_p), rdp(con_p), rdp(dec_p)
 if req is None:
-    sys.exit("ERROR: no requirements document in %s" % d)
-ddir = os.path.join(d, "decisions")
-dec_files = dict((re.match(r"(D-\d+)", f).group(1), os.path.join(ddir, f)) for f in os.listdir(ddir) if re.match(r"D-\d+\.md$", f)) if os.path.isdir(ddir) else {}
-dec = rdp(first("decisions.md")) if not dec_files else "\n".join(open(p, encoding="utf-8").read() for p in dec_files.values())
+    sys.exit("ERROR: no requirements.md in %s (pass the project folder, e.g. docs/zkit/mvp)" % d)
+dec_anchors = set(re.findall(r'<a id="(D-\d+)"></a>', dec or ""))
 out = []
 def err(m): out.append("ERROR  " + m)
 def warn(m): out.append("WARN   " + m)
@@ -72,20 +61,24 @@ for p, n in cnt.items():
 if reqs and cnt["Must"] * 100 / len(reqs) > 40:
     warn("Must is %d%% (%d of %d); say why in the doc or cut" % (cnt["Must"] * 100 / len(reqs), cnt["Must"], len(reqs)))
 
-# --- decisions cited exist and are not superseded
-if dec is not None:
-    if dec_files:
-        known = set(dec_files)
-        dead = set(k for k, p in dec_files.items() if re.search(r"Статус:\*\*\s*(заменено|superseded)", open(p, encoding="utf-8").read(), re.I))
-    else:
-        known = set(re.findall(r"^###\s*(D-\d+)", dec, re.M))
-        dead = set(re.findall(r"^###\s*(D-\d+)\s*\((?:заменено|superseded)", dec, re.M | re.I))
+# --- decisions cited exist, are not superseded, are links to an existing anchor
+if dec is None:
+    if re.search(r"\bD-\d+\b", req): warn("cites decisions, but no decisions document for this pass")
+else:
+    known = set(re.findall(r"^###\s*(D-\d+)", dec, re.M))
+    dead = set()
+    for m in re.finditer(r"^###\s*(D-\d+)[^\n]*\n(?:> \*\*Статус:\*\*\s*([^\n]*))?", dec, re.M):
+        if re.search(r"заменено|superseded", (m.group(2) or "") + m.group(0).split("\n")[0], re.I): dead.add(m.group(1))
     for dn in sorted(set(re.findall(r"\bD-\d+\b", req))):
         if dn not in known: err("cites %s, not in decisions" % dn)
         elif dn in dead: err("cites %s, which is superseded" % dn)
-    if dec_files:
-        bare = sorted(set(re.findall(r"(?<![\w\[/(-])(D-\d+)(?![\w\]-])(?!\]\()", re.sub(r"```.*?```", "", "\n".join(l for l in req.split("\n") if not l.startswith(("#", ">"))), flags=re.S))))
+    if True:
+        for dn in sorted(known - dec_anchors): warn("%s has no anchor in the decisions file (run link_docs.py)" % dn)
+        text = re.sub(r"```.*?```", "", "\n".join(l for l in req.split("\n") if not l.startswith(("#", ">"))), flags=re.S)
+        bare = sorted(set(re.findall(r"(?<![\w\[/(#-])(D-\d+)(?![\w\]-])(?!\]\()", text)))
         if bare: err("decisions cited without a link: " + ", ".join(bare) + " (run link_docs.py)")
+        for dn, frag in re.findall(r"\[(D-\d+)\]\([^)#]*#([^)]*)\)", req):
+            if frag != dn or dn not in dec_anchors: err("link for %s points to a missing anchor #%s" % (dn, frag))
 
 # --- research reports: cited ones exist and are real links; asked-for ones are linked both ways
 rdir = os.path.join(d, "research")

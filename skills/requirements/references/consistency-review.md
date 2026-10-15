@@ -1,6 +1,6 @@
 # Consistency review brief (concept ↔ requirements)
 
-Give this to a fresh reviewer sub-agent with the paths of the concept (`concept/NN-<slug>.md`), the `decisions/` folder and the requirements (`requirements/NN-<slug>.md`). The reviewer reads all three fully, reports in the developer's language, edits nothing, and returns at most 25 rows `type | where (concept § / requirement ID) | what is inconsistent | suggested fix`, most serious first, then a one-paragraph verdict (consistent / minor issues / serious issues). Categories:
+Give this to a fresh reviewer sub-agent with the paths of `concept.md`, `decisions.md` and `requirements.md` of the project. The reviewer reads all three fully, reports in the developer's language, edits nothing, and returns at most 25 rows `type | where (concept § / requirement ID) | what is inconsistent | suggested fix`, most serious first, then a one-paragraph verdict (consistent / minor issues / serious issues). Categories:
 
 1. SCOPE_GAP: first-version scope in the concept (scope section, capabilities, main scenario) that no requirement covers.
 2. SCOPE_LEAK: a requirement covering something the concept puts out of v1 or marks as later.

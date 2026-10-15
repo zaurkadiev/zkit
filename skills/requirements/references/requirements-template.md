@@ -5,8 +5,8 @@ Keep the document to roughly 2,000-3,500 words. Tables over prose. Use these sec
 ```markdown
 # <Name> — Requirements
 
-> **Links:** [concept](../concept/NN-<slug>.md) · [decisions](../decisions/index.md) · [index](../index.md)
-> **Status:** draft / agreed (agreed only when the clarity gate passes, see SKILL.md step 3) · **Date:** <date> · **Based on:** [concept/NN-<slug>.md](../concept/NN-<slug>.md) (<concept's own date>), verdict: <verdict>
+> **Links:** [concept](concept.md) · [decisions](decisions.md)
+> **Status:** draft / agreed (agreed only when the clarity gate passes, see SKILL.md step 3) · **Date:** <date> · **Based on:** [concept.md](concept.md) (<concept's own date>), verdict: <verdict>
 > **Counts:** <n> FR · <n> NFR · <n> C — Must <n> / Should <n> / Could <n> / Won't (v1) <n> (the checker compares these with the tables, so keep the `<n> FR`, `Must <n>` form)
 
 ## 1. Summary

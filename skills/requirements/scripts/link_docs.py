@@ -1,97 +1,125 @@
 #!/usr/bin/env python3
-"""Keep zkit documents linked. Idempotent; stdlib only.
+"""Keep the documents of one zkit project linked. Idempotent; stdlib only.
 
-Layout (zkit docs folder): folders are named by stage, files are numbered by pass through the chain
-(NN is the same in every stage folder for one pass; a new initiative gets the next NN):
-  index.md
-  concept/NN-<slug>.md
-  requirements/NN-<slug>.md          (later stages: high-level-design/NN-<slug>.md, ... add to STAGES)
-  decisions/index.md, decisions/D-<n>.md      (one file per decision, numbered across all passes)
-  research/R-<n>-<slug>.md
+Layout:
+  docs/zkit/<project>/               a project: 'mvp', a big feature, ... (kebab-case name)
+      concept.md
+      requirements.md                (later stages: high-level-design.md, design-details.md, ...: add to STAGES)
+      decisions.md                   ONE file: entries '### D-<n>: title', each with an <a id="D-<n>"> anchor
+      research/R-<n>-<slug>.md       one file per research question; ids unique inside the project
 
 Usage:
-  link_docs.py <dir>        make mentions of D-n, [R-n] and 'concept §n' real links in the stage documents;
-                            rebuild 'Связи' in decision files, 'Используется в' in research reports and
-                            decisions/index.md
-  link_docs.py <dir> --migrate [--slug name]
-                            first convert an old layout (flat 01-concept.md / 02-requirements.md / decisions.md,
-                            or 01-concept/concept.md) into the layout above; --slug names the pass
+  link_docs.py <project-dir>          turn mentions of D-n, [R-n] and 'concept §n' into links; rebuild the
+                                      back-links under each decision, 'Используется в' in research reports and
+                                      the summary table at the top of decisions.md
+  link_docs.py <zkit-root> --migrate --project <name>
+                                      move an older layout (flat files, numbered files or folders, one file per
+                                      decision) into <zkit-root>/<name>/ and repair the links
 """
-import os, re, sys, glob
+import os, re, sys, glob, shutil
 
-d = sys.argv[1] if len(sys.argv) > 1 else "docs/zkit"
 STAGES = ["concept", "requirements"]
-P = lambda *a: os.path.join(d, *a)
 rd = lambda p: open(p, encoding="utf-8").read()
 def wr(p, s):
-    os.makedirs(os.path.dirname(p), exist_ok=True); open(p, "w", encoding="utf-8").write(s)
+    os.makedirs(os.path.dirname(p) or ".", exist_ok=True); open(p, "w", encoding="utf-8").write(s)
 def rel(frm, to): return os.path.relpath(to, os.path.dirname(frm)).replace(os.sep, "/")
+ENTRY = re.compile(r'(?:<a id="D-\d+"></a>\n)?^###\s*D-(\d+)\s*(?:\(([^)]*)\))?\s*:\s*(.+?)\n(.*?)(?=^(?:<a id="D-\d+"></a>\n)?###\s*D-|\Z)', re.M | re.S)
+def entry_text(n, title, status, date, body):
+    return '<a id="D-%s"></a>\n### D-%s: %s\n> **Статус:** %s · **Дата:** %s\n\n%s\n' % (n, n, title.strip(), status, date, body.strip())
 
-# ---------- migration of old layouts
+arg = sys.argv[1] if len(sys.argv) > 1 else "docs/zkit"
+
+# ---------- migration of older layouts into <root>/<project>/
 if "--migrate" in sys.argv:
-    slug = sys.argv[sys.argv.index("--slug") + 1] if "--slug" in sys.argv else (os.path.basename(os.path.dirname(os.path.abspath(d))) or "project")
-    OLD = {"concept": ("01-concept.md", "01-concept/concept.md"), "requirements": ("02-requirements.md", "02-requirements/requirements.md")}
-    for name in STAGES:
-        for old in OLD[name]:
-            if os.path.exists(P(old)):
-                os.makedirs(P(name), exist_ok=True); os.rename(P(old), P(name, "01-%s.md" % slug))
-                if "/" in old and not os.listdir(os.path.dirname(P(old))): os.rmdir(os.path.dirname(P(old)))
-    if os.path.exists(P("decisions.md")):
-        txt = rd(P("decisions.md"))
-        for m in re.finditer(r"^###\s*D-(\d+)\s*(?:\(([^)]*)\))?\s*:\s*(.+?)\n(.*?)(?=^###\s*D-|\Z)", txt, re.M | re.S):
-            n, note, title, body = m.groups()
-            body = body.strip()
-            date = re.search(r"Дата:\s*([\d-]+)", body)
+    root = arg
+    name = sys.argv[sys.argv.index("--project") + 1] if "--project" in sys.argv else "mvp"
+    d = os.path.join(root, name); os.makedirs(d, exist_ok=True)
+    def grab(dest, *patterns):
+        for pat in patterns:
+            hit = sorted(glob.glob(os.path.join(root, pat)))
+            if hit:
+                shutil.move(hit[0], os.path.join(d, dest)); return True
+    grab("concept.md", "concept/[0-9][0-9]-*.md", "01-concept/concept.md", "01-concept.md")
+    grab("requirements.md", "requirements/[0-9][0-9]-*.md", "02-requirements/requirements.md", "02-requirements.md")
+    if os.path.isdir(os.path.join(root, "research")): shutil.move(os.path.join(root, "research"), os.path.join(d, "research"))
+    entries = {}
+    srcs = sorted(glob.glob(os.path.join(root, "decisions", "[0-9][0-9]-*.md")))
+    if srcs:
+        for m in ENTRY.finditer(rd(srcs[0])): entries[int(m.group(1))] = m.group(0).strip() + "\n"
+        shutil.rmtree(os.path.join(root, "decisions"))
+    elif os.path.exists(os.path.join(root, "decisions.md")):       # flat journal
+        for m in ENTRY.finditer(rd(os.path.join(root, "decisions.md"))):
+            n, note, title, body = m.groups(); body = body.strip()
+            date = (re.search(r"Дата:\s*([\d-]+)", body) or [None, "—"])[1]
             status = "принято"
             if note:
                 nm = re.search(r"D-(\d+)", note)
                 verb = "заменено" if re.search(r"заменено|superseded", note, re.I) else "уточнено"
-                status = "%s [D-%s](D-%s.md)" % (verb, nm.group(1), nm.group(1)) if nm else note
-            wr(P("decisions", "D-%s.md" % n), "# D-%s: %s\n\n> **Статус:** %s · **Дата:** %s\n\n%s\n" % (n, title.strip(), status, date.group(1) if date else "—", body))
-        os.rename(P("decisions.md"), P("decisions.md.migrated"))
-    # repair links in every document
-    C, R = "concept/01-%s.md" % slug, "requirements/01-%s.md" % slug
-    for f in glob.glob(P("**", "*.md"), recursive=True):
-        t = rd(f); u = t
-        top = os.path.dirname(os.path.abspath(f)) == os.path.abspath(d)
-        pre = "" if top else "../"
-        if not top:
-            u = u.replace("](research/", "](../research/").replace("](decisions.md)", "](../decisions/index.md)")
-        else:
-            u = u.replace("](decisions.md)", "](decisions/index.md)")
-        for old, new in (("01-concept/concept.md", C), ("02-requirements/requirements.md", R), ("01-concept.md", C), ("02-requirements.md", R)):
-            u = re.sub(r"\]\((?:\.\./)?%s\)" % re.escape(old), "](" + pre + new + ")", u)
-        if os.path.basename(os.path.dirname(f)) == "requirements":
-            u = re.sub(r"(?<![\[(/])01-concept\.md", "[01-concept.md](../%s)" % C, u, count=1)
-        if u != t: wr(f, u)
-    print("migrated")
+                status = "%s [D-%s](#D-%s)" % (verb, nm.group(1), nm.group(1)) if nm else note
+            entries[int(n)] = entry_text(n, title, status, date, body)
+        os.rename(os.path.join(root, "decisions.md"), os.path.join(root, "decisions.md.migrated"))
+    elif glob.glob(os.path.join(root, "decisions", "D-*.md")):     # one file per decision
+        for f in glob.glob(os.path.join(root, "decisions", "D-*.md")):
+            t = rd(f).split("\n## Связи")[0]
+            m = re.match(r"#\s*D-(\d+):\s*(.*?)\n+> \*\*Статус:\*\*\s*(.*?)\s*·\s*\*\*Дата:\*\*\s*([\d—-]+)\n+(.*)", t, re.S)
+            if m:
+                n, title, status, date, body = m.groups()
+                entries[int(n)] = entry_text(n, title, re.sub(r"\[(D-\d+)\]\(D-(\d+)\.md\)", r"[\1](#D-\2)", status), date, body)
+        shutil.rmtree(os.path.join(root, "decisions"))
+    if entries:
+        wr(os.path.join(d, "decisions.md"), "# Решения: %s\n\n" % name + "\n".join(entries[k] for k in sorted(entries)))
+    for ix in (os.path.join(root, "index.md"), os.path.join(root, "decisions", "index.md")):   # indexes are gone
+        if os.path.exists(ix): os.remove(ix)
+    arg = d
+    print("migrated into", d)
 
-def stage_files(name): return sorted(glob.glob(P(name, "[0-9][0-9]-*.md")))
-def concept_for(path):
-    c = glob.glob(P("concept", os.path.basename(path)[:2] + "-*.md"))
-    return c[0] if c else None
-
+d = arg
+P = lambda *a: os.path.join(d, *a)
+concept_p, req_p, dec_p = P("concept.md"), P("requirements.md"), P("decisions.md")
 rfiles = {re.match(r"R-\d+", os.path.basename(f)).group(0): f for f in glob.glob(P("research", "R-*.md"))}
-dfiles = {re.match(r"D-(\d+)", os.path.basename(f)).group(0): f for f in glob.glob(P("decisions", "D-*.md"))}
-stage_docs = [f for name in STAGES for f in stage_files(name)]
+stage_docs = [p for p in (concept_p, req_p) if os.path.exists(p)]
 
-# ---------- 1. linkify mentions in stage documents
+# ---------- repair links that no longer resolve (after a migration or a rename)
+def repair(f):
+    t = rd(f)
+    def fix(m):
+        tgt, frag = m.group(2), m.group(3) or ""
+        if tgt.startswith("http") or os.path.exists(os.path.normpath(os.path.join(os.path.dirname(f), tgt))): return m.group(0)
+        b = os.path.basename(tgt)
+        dm = re.match(r"D-(\d+)\.md$", b)
+        new = (dec_p, "#D-" + dm.group(1)) if dm else None
+        for key, path in (("decisions", dec_p), ("concept", concept_p), ("requirements", req_p)):
+            if new is None and key in tgt: new = (path, frag)
+        rm = re.search(r"R-\d+", b)
+        if new is None and rm and rm.group(0) in rfiles: new = (rfiles[rm.group(0)], frag)
+        if new is None or not os.path.exists(new[0]): return m.group(0)
+        return "%s(%s%s)" % (m.group(1), rel(f, new[0]), new[1])
+    u = re.sub(r"(\[[^\]]*\])\(([^)#\s]+\.md)(#[^)\s]*)?\)", fix, t)
+    if u != t: wr(f, u)
+for f in glob.glob(P("**", "*.md"), recursive=True):
+    repair(f)
+    t = rd(f)                                                   # drop leftovers of the retired index.md files
+    u = re.sub(r"[ \t]*·[ \t]*\[[^\]]*\]\([^)]*index\.md\)|\[[^\]]*\]\([^)]*index\.md\)[ \t]*·[ \t]*|\[[^\]]*\]\([^)]*index\.md\)", "", t)
+    if u != t: wr(f, u)
+
+def d_ids(): return set("D-" + x for x in re.findall(r"^###\s*D-(\d+)", rd(dec_p), re.M)) if os.path.exists(dec_p) else set()
+
+# ---------- 1. linkify mentions in concept and requirements
 def linkify(path):
-    out, fence = [], False
-    cp = concept_for(path) if os.path.basename(os.path.dirname(path)) != "concept" else None
+    out, fence, ids = [], False, d_ids()
     for line in rd(path).split("\n"):
         if line.startswith("```"): fence = not fence
-        if fence or line.startswith("#") or line.startswith(">"):
+        if fence or line.startswith("#") or line.startswith(">") or line.startswith("<a id"):
             out.append(line); continue
-        line = re.sub(r"(?<![\w\[/(-])(D-\d+)(?![\w\]-])(?!\]\()", lambda m: "[%s](%s)" % (m.group(1), rel(path, dfiles[m.group(1)])) if m.group(1) in dfiles else m.group(0), line)
+        line = re.sub(r"(?<![\w\[/(#-])(D-\d+)(?![\w\]-])(?!\]\()", lambda m: "[%s](%s#%s)" % (m.group(1), rel(path, dec_p), m.group(1)) if m.group(1) in ids else m.group(0), line)
         line = re.sub(r"\[(R-\d+)\](?!\()", lambda m: "[%s](%s)" % (m.group(1), rel(path, rfiles[m.group(1)])) if m.group(1) in rfiles else m.group(0), line)
-        if cp:
-            line = re.sub(r"(?<![\[\w])((?:concept|концепт)\s*§\s*\d+(?:[,\s]*§\s*\d+)*)(?!\]\()", lambda m: "[%s](%s)" % (m.group(1), rel(path, cp)), line, flags=re.I)
+        if path != concept_p and os.path.exists(concept_p):
+            line = re.sub(r"(?<![\[\w])((?:concept|концепт)\s*§\s*\d+(?:[,\s]*§\s*\d+)*)(?!\]\()", lambda m: "[%s](%s)" % (m.group(1), rel(path, concept_p)), line, flags=re.I)
         out.append(line)
     open(path, "w", encoding="utf-8").write("\n".join(out))
 for f in stage_docs: linkify(f)
 
-# ---------- 2. collect mentions: key -> {doc path: [labels]}
+# ---------- 2. mentions: key -> {doc: [labels]}
 def labels(path):
     res, head = {}, ""
     for line in rd(path).split("\n"):
@@ -104,36 +132,30 @@ def labels(path):
     return res
 mentions = {}
 for f in stage_docs:
-    for k, labs in labels(f).items():
-        mentions.setdefault(k, {}).setdefault(f, []).extend(labs)
+    for k, labs in labels(f).items(): mentions.setdefault(k, {}).setdefault(f, []).extend(labs)
+def links_for(key, own):
+    return ["[%s](%s): %s" % (os.path.basename(f), rel(own, f), ", ".join(dict.fromkeys(mentions[key][f]))) for f in stage_docs if f in mentions.get(key, {})]
 
-def block(key, path, title):
-    lines = []
-    for f in stage_docs:
-        labs = mentions.get(key, {}).get(f)
-        if labs:
-            lines.append("- [%s/%s](%s): %s" % (os.path.basename(os.path.dirname(f)), os.path.basename(f), rel(path, f), ", ".join(dict.fromkeys(labs))))
-    if key.startswith("D-"):
-        for k, f in sorted(dfiles.items(), key=lambda x: int(x[0][2:])):
-            if f != path and re.search(r"\b%s\b" % re.escape(key), rd(f).split("## Связи")[0]):
-                lines.append("- [%s](%s): упоминает" % (k, rel(path, f)))
-    return "## %s\n<!-- собирается link_docs.py, не править вручную -->\n%s\n" % (title, "\n".join(lines) or "- пока нигде не используется")
+# ---------- 3. decisions.md: back-links per entry and a summary table
+if os.path.exists(dec_p):
+    t = rd(dec_p); ents = list(ENTRY.finditer(t))
+    head = re.split(r"\n## Сводка", t[:ents[0].start()] if ents else t)[0].rstrip("\n") + "\n"
+    rows, body = [], []
+    for m in ents:
+        n, note, title, b = m.groups(); key = "D-" + n
+        b = re.sub(r"\n?<!-- links -->.*?<!-- /links -->\n?", "\n", b, flags=re.S).rstrip("\n")
+        st = (re.search(r"Статус:\*\*\s*(.*?)\s*·", b) or [None, note or "принято"])[1]
+        rows.append("| [%s](#%s) | %s | %s |" % (key, key, title.strip(), st))
+        refs = links_for(key, dec_p)
+        for o in ents:
+            ob = re.sub(r"<!-- links -->.*?<!-- /links -->", "", o.group(4), flags=re.S)
+            if o is not m and re.search(r"\b%s\b" % key, ob): refs.append("[D-%s](#D-%s): упоминает" % (o.group(1), o.group(1)))
+        body.append(('<a id="D-%s"></a>\n### D-%s: %s\n' % (n, n, title.strip())) + b + "\n\n<!-- links -->\n**Связи:** " + ("; ".join(refs) if refs else "пока нигде не используется") + "\n<!-- /links -->\n")
+    wr(dec_p, head + "\n## Сводка\n\n| # | Решение | Статус |\n|---|---|---|\n" + "\n".join(rows) + "\n\n## Решения\n\n" + "\n".join(body))
 
-for key, f in dfiles.items():
-    body = rd(f).split("\n## Связи")[0].rstrip("\n")
-    wr(f, body + "\n\n" + block(key, f, "Связи"))
+# ---------- 4. research reports: used in
 for key, f in rfiles.items():
     body = re.split(r"\n## (?:Используется в|Used in)", rd(f))[0].rstrip("\n")
-    wr(f, body + "\n\n" + block(key, f, "Используется в"))
-
-# ---------- 3. decisions/index.md
-rows = []
-for k, f in sorted(dfiles.items(), key=lambda x: int(x[0][2:])):
-    t = rd(f)
-    title = re.match(r"#\s*D-\d+:\s*(.*)", t).group(1) if re.match(r"#\s*D-\d+:", t) else k
-    st = re.search(r"Статус:\*\*\s*(.*?)\s*·", t)
-    dt = re.search(r"Дата:\*\*\s*([\d-]+)", t)
-    rows.append("| [%s](%s) | %s | %s | %s |" % (k, os.path.basename(f), title, st.group(1) if st else "—", dt.group(1) if dt else "—"))
-if rows:
-    wr(P("decisions", "index.md"), "# Решения\n\n| # | Решение | Статус | Дата |\n|---|---|---|---|\n" + "\n".join(rows) + "\n")
-print("linked: %d decisions, %d reports, %d stage documents" % (len(dfiles), len(rfiles), len(stage_docs)))
+    refs = links_for(key, f)
+    wr(f, body + "\n\n## Используется в\n<!-- собирается link_docs.py, не править вручную -->\n" + ("\n".join("- " + r for r in refs) or "- пока нигде не используется") + "\n")
+print("linked: %s — %d stage documents, %d decisions, %d reports" % (os.path.basename(os.path.abspath(d)), len(stage_docs), len(d_ids()), len(rfiles)))
