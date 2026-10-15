@@ -4,12 +4,19 @@ Usage: check_requirements.py <zkit-docs-dir>   (exit 1 if any ERROR). Stdlib onl
 import re, sys, os
 
 d = sys.argv[1] if len(sys.argv) > 1 else "docs/zkit"
-def rd(n):
-    p = os.path.join(d, n)
-    return open(p, encoding="utf-8").read() if os.path.exists(p) else None
-req, con, dec = rd("02-requirements.md"), rd("01-concept.md"), rd("decisions.md")
+def first(*names):
+    for n in names:
+        p = os.path.join(d, n)
+        if os.path.exists(p): return p
+def rdp(p): return open(p, encoding="utf-8").read() if p else None
+req_p = first("02-requirements/requirements.md", "02-requirements.md")
+con_p = first("01-concept/concept.md", "01-concept.md")
+req, con = rdp(req_p), rdp(con_p)
 if req is None:
-    sys.exit("ERROR: no 02-requirements.md in %s" % d)
+    sys.exit("ERROR: no 02-requirements/requirements.md in %s" % d)
+ddir = os.path.join(d, "decisions")
+dec_files = dict((re.match(r"(D-\d+)", f).group(1), os.path.join(ddir, f)) for f in os.listdir(ddir) if re.match(r"D-\d+\.md$", f)) if os.path.isdir(ddir) else {}
+dec = rdp(first("decisions.md")) if not dec_files else "\n".join(open(p, encoding="utf-8").read() for p in dec_files.values())
 out = []
 def err(m): out.append("ERROR  " + m)
 def warn(m): out.append("WARN   " + m)
@@ -61,11 +68,18 @@ if reqs and cnt["Must"] * 100 / len(reqs) > 40:
 
 # --- decisions cited exist and are not superseded
 if dec is not None:
-    known = set(re.findall(r"^###\s*(D-\d+)", dec, re.M))
-    dead = set(re.findall(r"^###\s*(D-\d+)\s*\((?:заменено|superseded)", dec, re.M | re.I))
+    if dec_files:
+        known = set(dec_files)
+        dead = set(k for k, p in dec_files.items() if re.search(r"Статус:\*\*\s*(заменено|superseded)", open(p, encoding="utf-8").read(), re.I))
+    else:
+        known = set(re.findall(r"^###\s*(D-\d+)", dec, re.M))
+        dead = set(re.findall(r"^###\s*(D-\d+)\s*\((?:заменено|superseded)", dec, re.M | re.I))
     for dn in sorted(set(re.findall(r"\bD-\d+\b", req))):
-        if dn not in known: err("cites %s, not in decisions.md" % dn)
+        if dn not in known: err("cites %s, not in decisions" % dn)
         elif dn in dead: err("cites %s, which is superseded" % dn)
+    if dec_files:
+        bare = sorted(set(re.findall(r"(?<![\w\[/(-])(D-\d+)(?![\w\]-])(?!\]\()", re.sub(r"```.*?```", "", "\n".join(l for l in req.split("\n") if not l.startswith(("#", ">"))), flags=re.S))))
+        if bare: err("decisions cited without a link: " + ", ".join(bare) + " (run link_docs.py)")
 
 # --- research reports: cited ones exist and are real links; asked-for ones are linked both ways
 rdir = os.path.join(d, "research")
@@ -78,7 +92,7 @@ for f in files:
     head_r = open(os.path.join(rdir, f), encoding="utf-8").read().split("\n## ")[0]
     if re.search(r"requirements", head_r, re.I):
         if f not in req: warn("%s was asked by requirements but 02-requirements.md does not link it" % f)
-        if "02-requirements.md" not in open(os.path.join(rdir, f), encoding="utf-8").read(): warn("%s has no back-link to 02-requirements.md (Used in)" % f)
+        if not re.search(r"02-requirements", open(os.path.join(rdir, f), encoding="utf-8").read()): warn("%s has no back-link to the requirements (run link_docs.py)" % f)
 
 # --- cited concept sections exist
 if con is not None:
