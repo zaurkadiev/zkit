@@ -1,0 +1,8 @@
+{
+ "skill_name": "requirements",
+ "evals": [
+  {"id": 0, "prompt": "Концепт Open Agent Bot готов (проект в <project>, документы в docs/zkit/). Давай сделаем требования.", "expected_output": "02-requirements.md with numbered FR/NFR/C, acceptance criteria, load profile, traceability to concept; preconditions from the Validate-first verdict; index.md row and decisions.md updated; no design", "files": ["fixtures/oab"]},
+  {"id": 1, "prompt": "Хочу бота, который присылает мне в Telegram сводку цен на авиабилеты по моим маршрутам. Напиши требования.", "expected_output": "Notices there is no concept, does not fabricate one; short intake or offers /zkit:concepting; marks document as having no concept behind it", "files": ["fixtures/empty"]},
+  {"id": 2, "prompt": "Концепт внутренней вики лежит в docs/zkit. Сделай требования.", "expected_output": "Sees Buy-or-reuse verdict, does not write build requirements for a custom wiki; offers requirements for selecting a product", "files": ["fixtures/buy"]}
+ ]
+}
