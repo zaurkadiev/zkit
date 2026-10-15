@@ -7,7 +7,7 @@ Keep the whole document to roughly 1,500-2,500 words: conceptual level, no schem
 
 > **Status:** draft · **Date:** <date> · **Verdict:** <Build / Build smaller / Validate first / Buy or reuse / Don't build> — <one-sentence reason>
 
-> **Next:** [requirements](../02-requirements/requirements.md) · [decisions](../decisions/index.md) · [index](../index.md)
+> **Next:** [requirements](../requirements/NN-<slug>.md) · [decisions](../decisions/index.md) · [index](../index.md)
 
 ## 1. Summary
 What the system is (in a sentence or two), for whom, the recommended approach, and the verdict, in ≤5 sentences.

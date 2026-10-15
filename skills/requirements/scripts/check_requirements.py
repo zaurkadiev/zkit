@@ -1,19 +1,25 @@
 #!/usr/bin/env python3
 """Mechanical consistency check: 02-requirements.md vs 01-concept.md and decisions.md.
-Usage: check_requirements.py <zkit-docs-dir>   (exit 1 if any ERROR). Stdlib only."""
+Usage: check_requirements.py <zkit-docs-dir> [--id NN]   (exit 1 if any ERROR). Stdlib only.
+Documents: requirements/NN-<slug>.md and concept/NN-<slug>.md (same NN); older layouts still work."""
 import re, sys, os
 
 d = sys.argv[1] if len(sys.argv) > 1 else "docs/zkit"
+import glob
 def first(*names):
     for n in names:
         p = os.path.join(d, n)
         if os.path.exists(p): return p
 def rdp(p): return open(p, encoding="utf-8").read() if p else None
-req_p = first("02-requirements/requirements.md", "02-requirements.md")
-con_p = first("01-concept/concept.md", "01-concept.md")
+args = [a for a in sys.argv[1:] if a != d]
+nn = args[args.index("--id") + 1] if "--id" in args else None   # pass number; default: the newest requirements file
+cands = sorted(glob.glob(os.path.join(d, "requirements", (nn or "[0-9][0-9]") + "-*.md")))
+req_p = cands[-1] if cands else first("02-requirements/requirements.md", "02-requirements.md")
+con_c = glob.glob(os.path.join(d, "concept", os.path.basename(req_p)[:2] + "-*.md")) if cands else []
+con_p = con_c[0] if con_c else first("01-concept/concept.md", "01-concept.md")
 req, con = rdp(req_p), rdp(con_p)
 if req is None:
-    sys.exit("ERROR: no 02-requirements/requirements.md in %s" % d)
+    sys.exit("ERROR: no requirements document in %s" % d)
 ddir = os.path.join(d, "decisions")
 dec_files = dict((re.match(r"(D-\d+)", f).group(1), os.path.join(ddir, f)) for f in os.listdir(ddir) if re.match(r"D-\d+\.md$", f)) if os.path.isdir(ddir) else {}
 dec = rdp(first("decisions.md")) if not dec_files else "\n".join(open(p, encoding="utf-8").read() for p in dec_files.values())
@@ -92,7 +98,7 @@ for f in files:
     head_r = open(os.path.join(rdir, f), encoding="utf-8").read().split("\n## ")[0]
     if re.search(r"requirements", head_r, re.I):
         if f not in req: warn("%s was asked by requirements but 02-requirements.md does not link it" % f)
-        if not re.search(r"02-requirements", open(os.path.join(rdir, f), encoding="utf-8").read()): warn("%s has no back-link to the requirements (run link_docs.py)" % f)
+        if not re.search(r"requirements", open(os.path.join(rdir, f), encoding="utf-8").read()): warn("%s has no back-link to the requirements (run link_docs.py)" % f)
 
 # --- cited concept sections exist
 if con is not None:
