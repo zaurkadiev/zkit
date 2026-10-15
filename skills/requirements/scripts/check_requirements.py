@@ -107,6 +107,12 @@ body = re.split(r"(?im)^##\s*\d*\.?\s*(?:ограничения|constraints)", r
 tech = re.findall(r"(?i)\b(postgres\w*|redis|kafka|rabbitmq|kubernetes|k8s|mongodb|graphql|docker|микросервис\w*)\b", body)
 if tech: warn("solution words outside constraints: " + ", ".join(sorted(set(t.lower() for t in tech))))
 
+# --- clarity gate: how much still rests on unconfirmed assumptions
+agreed = bool(re.search(r"Status:\*\*\s*(согласовано|agreed)", head, re.I))
+loose = [r["id"] for r in reqs if r["priority"] == "Must" and r["basis"] and re.search(r"assumed", r["basis"], re.I) and not re.search(r"confirmed|подтвержд|P-\d", r["basis"], re.I)]
+openq = len(re.findall(r"\|\s*open\s*\|?\s*$|\bopen\)?\s*\|?\s*$", req.split("Журнал вопросов")[-1].split("\n## ")[0], re.M | re.I)) if re.search(r"Журнал вопросов|Interview log", req) else 0
+out.append("CLARITY %d Must requirement(s) rest on unconfirmed assumptions: %s; %d open question(s) in the log" % (len(loose), ", ".join(loose) or "-", openq))
+if agreed and (loose or openq): err("status is 'agreed' but clarity gate is not passed (see CLARITY line)")
 print("\n".join(out) if out else "OK: no findings")
 print("%d requirements, %d constraints checked" % (len(reqs), len(rows) - len(reqs)))
 sys.exit(1 if any(o.startswith("ERROR") for o in out) else 0)
