@@ -67,10 +67,18 @@ if dec is not None:
         if dn not in known: err("cites %s, not in decisions.md" % dn)
         elif dn in dead: err("cites %s, which is superseded" % dn)
 
-# --- cited research reports exist
+# --- research reports: cited ones exist and are real links; asked-for ones are linked both ways
+rdir = os.path.join(d, "research")
+files = sorted(os.listdir(rdir)) if os.path.isdir(rdir) else []
 for rn in sorted(set(re.findall(r"\[(R-\d+)\]", req))):
-    rdir = os.path.join(d, "research")
-    if not (os.path.isdir(rdir) and any(f.startswith(rn + "-") for f in os.listdir(rdir))): err("cites %s, no such report in research/" % rn)
+    if not any(f.startswith(rn + "-") for f in files): err("cites %s, no such report in research/" % rn)
+    elif re.search(r"\[%s\](?!\()" % rn, req): err("%s is cited without a link to research/%s-*.md" % (rn, rn))
+for f in files:
+    rn = f.split("-")[0] + "-" + f.split("-")[1]
+    head_r = open(os.path.join(rdir, f), encoding="utf-8").read().split("\n## ")[0]
+    if re.search(r"requirements", head_r, re.I):
+        if f not in req: warn("%s was asked by requirements but 02-requirements.md does not link it" % f)
+        if "02-requirements.md" not in open(os.path.join(rdir, f), encoding="utf-8").read(): warn("%s has no back-link to 02-requirements.md (Used in)" % f)
 
 # --- cited concept sections exist
 if con is not None:

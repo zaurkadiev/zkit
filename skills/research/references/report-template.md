@@ -19,3 +19,6 @@ Written by the main agent, not the sub-agents: how this changes the recommendati
 
 ## Method
 Sub-agents used (how many, what each was asked), date of search, anything skipped.
+
+## Used in
+Links to the documents and sections that rely on this report, e.g. `[02-requirements.md](../02-requirements.md): NFR-1, К-4`. Filled in when the calling document cites the report; keep it in sync.
