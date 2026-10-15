@@ -1,0 +1,23 @@
+{
+ "skill_name": "concepting",
+ "evals": [
+  {
+   "id": 0,
+   "prompt": "Хочу сделать штуку, которая автоматически ревьюит PR и учится на моих комментариях. Стоит ли вообще?",
+   "expected_output": "Honest competitor landscape (CodeRabbit etc.), strengths and weaknesses, likely Buy/Build smaller verdict",
+   "files": []
+  },
+  {
+   "id": 1,
+   "prompt": "Нужна система уведомлений для ~50k пользователей: email + push + telegram. Команда из 3 человек, есть Postgres и k8s. Накидай концепт.",
+   "expected_output": "Compares 2-4 real architectures incl. buy (SaaS), recommends the simplest that fits, no overengineering",
+   "files": []
+  },
+  {
+   "id": 2,
+   "prompt": "Сделаю ещё один todo-менеджер с AI, чтобы он сам планировал мой день.",
+   "expected_output": "Willing to say Don't build / Validate first, but also names real strengths; competitors (Motion, Reclaim, Todoist) with sources",
+   "files": []
+  }
+ ]
+}
