@@ -67,6 +67,11 @@ if dec is not None:
         if dn not in known: err("cites %s, not in decisions.md" % dn)
         elif dn in dead: err("cites %s, which is superseded" % dn)
 
+# --- cited research reports exist
+for rn in sorted(set(re.findall(r"\[(R-\d+)\]", req))):
+    rdir = os.path.join(d, "research")
+    if not (os.path.isdir(rdir) and any(f.startswith(rn + "-") for f in os.listdir(rdir))): err("cites %s, no such report in research/" % rn)
+
 # --- cited concept sections exist
 if con is not None:
     secs = set(re.findall(r"^##\s*(\d+)\.", con, re.M))
