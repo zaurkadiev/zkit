@@ -5,8 +5,8 @@ Keep the document to roughly 2,000-3,500 words. Tables over prose. Use these sec
 ```markdown
 # <Name> — Requirements
 
-> **Status:** draft · **Date:** <date> · **Based on:** 01-concept.md (<date/version>), verdict: <verdict>
-> **Counts:** <n> FR · <n> NFR · <n> C — Must <n> / Should <n> / Could <n> / Won't (v1) <n>
+> **Status:** draft · **Date:** <date> · **Based on:** 01-concept.md (<concept's own date>), verdict: <verdict>
+> **Counts:** <n> FR · <n> NFR · <n> C — Must <n> / Should <n> / Could <n> / Won't (v1) <n> (the checker compares these with the tables, so keep the `<n> FR`, `Must <n>` form)
 
 ## 1. Summary
 What the system is in one sentence, what v1 covers, the main open item. ≤5 sentences.
@@ -55,6 +55,9 @@ Ranked. Conflicting requirements and trade-offs awaiting a decision, assumed tar
 
 ## 11. Deferred to design
 One line per implementation-level idea that came up, tagged with the target stage (`→ high-level-design`, `→ design-details`).
+
+## 12. Consistency check
+Date; result of `scripts/check_requirements.py` (errors / warnings left and why); verdict of the independent reviewer against the concept; what was fixed; what stays open and where it is recorded.
 
 ## Sources
 Numbered URLs; mark findings from delegated research with their confidence.

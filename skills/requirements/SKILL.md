@@ -33,6 +33,7 @@ Find the zkit docs folder: default `docs/zkit/`; check the project's `AGENTS.md`
 - Verdict is **Don't build** or **Buy or reuse**: say that requirements for building aren't warranted; offer instead requirements for the *selection* of the thing to adopt, if the developer wants them.
 - Verdict is **Validate first**: write requirements for the recommended approach's first version anyway, but list the validation gates from the concept as *preconditions* at the top, so nobody mistakes the document for a go decision.
 - Superseded decisions (`superseded by D-n`) are history; take requirements only from the current ones.
+- `02-requirements.md` already exists: run the check from step 5 first. If it reports that the concept is newer, the existing requirements may be stale; list what changed in the concept before revising.
 
 ### 2. Draft from the concept — before asking anything
 Do the work you can do alone, so the developer reviews instead of authors:
@@ -57,19 +58,27 @@ A requirement earns its place by being checkable. For every one:
 - **Consistent:** look for pairs that can't both hold (cheap vs. independently verified results, instant vs. human approval) and surface them as an explicit trade-off question instead of picking silently.
 - **Stable IDs:** `FR-n` functional, `NFR-n` non-functional (with a category), `C-n` constraints. IDs never get reused or renumbered on revision; dropped ones are marked withdrawn. Later stages and tasks link to them.
 
-### 5. Write the file
-Write a single Markdown file in the developer's language (the concept's language, by default) as `02-requirements.md` in the zkit docs folder (create it if missing), using `references/requirements-template.md` — read it before writing. If the file exists, read it and revise instead of overwriting: keep what still holds, keep IDs, and add a short `## Changes since previous version` note on top. If the concept changed after the requirements were written (compare dates/versions), say which requirements may be stale.
+### 5. Check consistency with the concept — before declaring it done
+The two documents must agree, and agreement is verified, not asserted. Two checks, in this order:
+
+1. **Mechanical:** run `python3 <skill-dir>/scripts/check_requirements.py <zkit-docs-folder>` (stdlib only; exit code 1 on errors). It checks the things a script can: IDs unique, every row has priority, acceptance, source and basis; header counts equal actual counts; every cited `D-n` exists in `decisions.md` and isn't superseded; cited concept sections exist; every requirement appears in the traceability table and nothing there points to a missing ID; the concept isn't newer than the date the requirements are based on; a *Validate first* verdict has preconditions; no solution words outside Constraints; Must share ≤ 40% (a warning). Fix every ERROR. For each WARN, fix it or write one line in the document saying why it stays (e.g. why Must is high). Don't edit the script's findings away by weakening the document's claims — fix the cause.
+2. **Semantic:** a script can't tell that a requirement contradicts the concept in meaning. Spawn one fresh reviewer sub-agent (it must not have written the document; give it only the paths of `01-concept.md`, `decisions.md` and `02-requirements.md`) with the brief in `references/consistency-review.md`. It returns a table of findings; you judge each one (it is evidence, not a verdict): fix the requirements, or, when the requirement is right and the concept is wrong or vague, record it under *Conflicts and open questions* as a concept issue for the developer to take back to `/zkit:concepting` — never rewrite the concept from here. Without sub-agents, do the same pass yourself with that file's list, re-reading the concept rather than relying on memory.
+
+Then record the outcome in the document's *Consistency check* section: date, script result, reviewer verdict, what was fixed, what stays open. Re-run both checks after any change you make because of them.
+
+### 6. Write the file
+Write a single Markdown file in the developer's language (the concept's language, by default) as `02-requirements.md` in the zkit docs folder (create it if missing), using `references/requirements-template.md` — read it before writing. If the file exists, read it and revise instead of overwriting: keep what still holds, keep IDs, and add a short `## Changes since previous version` note on top. If the concept changed after the requirements were written (compare dates/versions), say which requirements may be stale. Set the header's `Based on` line to the concept's actual date: the script uses it to detect drift later.
 
 Also update, in the same folder:
 - `index.md`: add or refresh **only your own row** (`#`, file as link, stage, status, date, one-line summary — for requirements: counts and the main open item); leave other stages' rows alone.
 - `decisions.md`: append `### D-<n>: <decision>` entries (continue the existing numbering) for decisions made here that change what gets built — a priority cut, a chosen target, a trade-off resolved — each with alternatives, why, date.
 
-Then give a short summary in chat: counts (Must/Should/Could), the 2-3 riskiest assumed targets, any conflict or concept issue found, and what is still open; offer another question round if gaps remain; name the next step (`high-level-design`). Don't paste the document.
+Then give a short summary in chat: the consistency-check result, counts (Must/Should/Could), the 2-3 riskiest assumed targets, any conflict or concept issue found, and what is still open; offer another question round if gaps remain; name the next step (`high-level-design`). Don't paste the document.
 
 ## Quality bar
 - Every requirement is atomic, testable and traced; no solution words unless a user-imposed constraint with a source.
 - Every NFR has a number (or a stated reason it can't yet) and a basis tag; assumed ones say how to validate.
-- Concept ↔ requirements both ways: nothing in v1 scope uncovered, no orphan requirements.
+- Concept ↔ requirements both ways and *checked*: the script passes without errors and the reviewer's findings are resolved or recorded; nothing in v1 scope uncovered, no orphan requirements.
 - Scope is explicit: Must/Should/Could for v1 and a visible Won't list.
 - Conflicts and concept problems are surfaced, not smoothed over.
 - Short beats long: tables over prose, roughly 2,000-3,500 words; past ~60 requirements, the v1 is likely too big or the requirements are really design.
