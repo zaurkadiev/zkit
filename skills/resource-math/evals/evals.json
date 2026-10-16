@@ -1,0 +1,49 @@
+{
+ "skill_name": "resource-math",
+ "evals": [
+  {
+   "id": 0,
+   "prompt": "Требования Open Agent Bot согласованы (проект docs/zkit/mvp). Сделай resource-math. Разработчика на связи нет: по каждому открытому вопросу бери свою рекомендацию и помечай допущением.",
+   "expected_output": "resource-math.md + resource_model.py in docs/zkit/mvp; binding resources identified (tokens/model price, environments per server, storage, human time), assumptions with best/expected/worst and sources from research R-1..R-7, limits tested against the $20/organization target and the 100-150 EUR/month budget, honest verdict (including failing worst case), sensitivity, consequences for the design as ceilings, check_resource_math.py passes, no architecture decisions; includes the builder's own time against the available hours (К-11); at most ~20 assumptions",
+   "files": [
+    "fixtures/oab-mvp"
+   ],
+   "assertions": [
+    "resource-math.md и resource_model.py созданы в docs/zkit/mvp",
+    "check_resource_math.py завершается без ERROR",
+    "у каждого допущения диапазон best/expected/worst, уровень достоверности и источник",
+    "есть лимиты на цель $20 на организацию и бюджет 100–150 €/мес",
+    "вердикт в документе совпадает с вычисленным (худший сценарий не скрыт)",
+    "в документе нет архитектурных решений (провайдер/продукт только как источник числа)",
+    "раздел последствий для дизайна сформулирован как потолки и стоимости единиц"
+   ]
+  },
+  {
+   "id": 1,
+   "prompt": "Хочу бота, который присылает мне в Telegram сводку цен на авиабилеты. Посчитай, влезет ли он в мой бюджет, сделай resource-math.",
+   "expected_output": "Notices there are no requirements (or concept), does not fabricate them; offers /zkit:requirements first or a short intake clearly marked 'no requirements behind it'",
+   "files": [
+    "fixtures/empty"
+   ],
+   "assertions": [
+    "не создан resource-math.md с выдуманными требованиями",
+    "сказано, что нет requirements/concept, и предложен /zkit:requirements или короткий intake с пометкой"
+   ]
+  },
+  {
+   "id": 2,
+   "prompt": "Требования карманного синтезатора согласованы (проект docs/zkit/synth). Сделай resource-math. Разработчика на связи нет: по каждому открытому вопросу бери свою рекомендацию и помечай допущением.",
+   "expected_output": "Adapts to a real-time embedded system: time per audio buffer / cycles per sample, RAM and flash, power, parts cost; model computes CPU load for 16 voices at 48 kHz against NFR-3 (80%) and tests every numeric Must (NFR-1..5, C-3); a failing worst case is stated plainly and recorded as risk or decision; status not agreed without the clarity gate; no silently bent numbers; at most ~20 assumptions",
+   "files": [
+    "fixtures/rt-synth"
+   ],
+   "assertions": [
+    "модель считает циклы/время на буфер для 16 голосов при 48 кГц против NFR-3 (80%)",
+    "учтены ОЗУ и флеш (NFR-4, NFR-5)",
+    "при провале в expected сказано «не вмещается» прямо и статус не agreed",
+    "предложены варианты (меньше голосов, проще голос, смена требований), требования не подогнаны молча",
+    "check_resource_math.py без ERROR"
+   ]
+  }
+ ]
+}
