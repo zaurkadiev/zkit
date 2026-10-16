@@ -1,0 +1,8 @@
+{
+ "skill_name": "high-level-design",
+ "evals": [
+  {"id": 0, "prompt": "Требования Open Agent Bot согласованы (проект в docs/zkit/mvp). Давай сделаем high-level design.", "expected_output": "high-level-design.md with 4-8 parts (B-n), interfaces with draft API, Mermaid diagram, key decisions D-n with options (foundation adopt-vs-build, actor model, environment placement, approval enforcement), 3-5 scenarios including restart-in-the-middle-of-send, traceability for every Must requirement, check_hld.py without errors, no languages/databases/brokers/schemas", "files": ["fixtures/oab-mvp"]},
+  {"id": 1, "prompt": "Хочу бота, который присылает мне в Telegram сводку цен на авиабилеты по моим маршрутам. Сделай high-level design.", "expected_output": "Notices there are no requirements (or concept), does not fabricate them; offers /zkit:requirements first or a short intake clearly marked 'no requirements behind it'", "files": ["fixtures/empty"]},
+  {"id": 2, "prompt": "Сделай high-level design для Open Agent Bot, проект в docs/zkit/mvp.", "expected_output": "Notices requirements are still draft with an open clarity gate (FR-21 assumed), says so, offers to finish requirements; if continuing, marks the design draft and lists which requirements it rests on unconfirmed", "files": ["fixtures/oab-draft"]}
+ ]
+}
