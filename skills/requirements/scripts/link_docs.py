@@ -18,7 +18,7 @@ Usage:
 """
 import os, re, sys, glob, shutil
 
-STAGES = ["concept", "requirements", "resource-math", "high-level-design"]   # later stages: add here and to stage_docs below
+STAGES = ["concept", "requirements", "resource-math", "contracts", "high-level-design"]   # later stages: add here and to stage_docs below
 rd = lambda p: open(p, encoding="utf-8").read()
 def wr(p, s):
     os.makedirs(os.path.dirname(p) or ".", exist_ok=True); open(p, "w", encoding="utf-8").write(s)
@@ -78,8 +78,9 @@ P = lambda *a: os.path.join(d, *a)
 concept_p, req_p, dec_p = P("concept.md"), P("requirements.md"), P("decisions.md")
 hld_p = P("high-level-design.md")
 rm_p = P("resource-math.md")
+ct_p = P("contracts.md")
 rfiles = {re.match(r"R-\d+", os.path.basename(f)).group(0): f for f in glob.glob(P("research", "R-*.md"))}
-stage_docs = [p for p in (concept_p, req_p, rm_p, hld_p) if os.path.exists(p)]
+stage_docs = [p for p in (concept_p, req_p, rm_p, ct_p, hld_p) if os.path.exists(p)]
 
 # ---------- repair links that no longer resolve (after a migration or a rename)
 def repair(f):
@@ -127,7 +128,7 @@ def labels(path):
     for line in rd(path).split("\n"):
         h = re.match(r"#+\s*(.*)", line)
         if h: head = h.group(1).strip(); continue
-        idm = re.match(r"\|\s*((?:FR|NFR|C|B|I|S|A|L)-\d+)\s*\|", line) or re.match(r"\s*(?:[-*]|\d+\.)\s*\*\*([PWК]-\d+)\.", line)
+        idm = re.match(r"\|\s*((?:FR|NFR|C|B|I|S|A|L|X)-\d+)\s*\|", line) or re.match(r"\s*(?:[-*]|\d+\.)\s*\*\*([PWК]-\d+)\.", line)
         label = idm.group(1) if idm else re.sub(r"\s+", " ", head)[:60] or "—"
         for k in set(re.findall(r"\b(D-\d+)\b", line)) | set("R-" + x for x in re.findall(r"\bR-(\d+)\b", line)):
             res.setdefault(k, []).append(label)
