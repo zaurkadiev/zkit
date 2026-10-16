@@ -210,7 +210,7 @@ agreed = bool(re.search(r"Status:\*\*\s*(согласовано|agreed)|Стат
 uncovered = sorted(r for r, p in reqs.items() if p == "Must" and (r not in covered or not covered[r]))
 kd = sec("ключевые решения", "key decisions")
 open_forks = len([l for l in kd.splitlines() if l.startswith("|") and re.search(r"(?i)\b(tbd|open)\b|не решено|открыт", l)])
-risks = sec("риски", "risks")
+risks = "\n".join(sec("риски", "risks").split("\n")[1:])   # skip the heading line
 loose = len([l for l in risks.splitlines() if re.search(r"(?i)assumed|допущени", l) and not re.search(r"(?i)validat|валидир|проверк|spike|замер|измер|P-\d|пилот|pilot", l)])
 out.append("CLARITY %d Must requirement(s) without a covering part: %s; %d open fork(s); %d architectural assumption(s) without a validation" % (len(uncovered), ", ".join(uncovered) or "-", open_forks, loose))
 if agreed and (uncovered or open_forks or loose): err("status is 'agreed' but the clarity gate is not passed (see CLARITY line)")
