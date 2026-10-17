@@ -1,6 +1,6 @@
 ---
 name: research
-description: Delegate a focused fact-finding question to research sub-agents at any stage of the zkit chain (concept, requirements, high-level design, design details, specs, roadmap, tasks), then verify the findings and save them as a citable report in docs/zkit/<project>/research/. Use whenever a stage hits a question it cannot settle from the documents or one quick search — a competitor niche, a technology's real limits, typical load of comparable systems, pricing, a legal duty, a vendor quota, a library's maturity — or when the user says "research X", "find out whether", "check how others do it", "compare options for", "изучи", "исследуй", "разберись". Other zkit skills call this one; it also works standalone.
+description: Delegate a focused fact-finding question to research sub-agents at any stage of the zkit chain (concepting, requirements, resource-math, contracts, data, architecture, mechanics, resilience, roadmap), then verify the findings and save them as a citable report in docs/zkit/<project>/research/. Use whenever a stage hits a question it cannot settle from the documents or one quick search — a competitor niche, a technology's real limits, typical load of comparable systems, pricing, a legal duty, a vendor quota, a library's maturity — or when the user says "research X", "find out whether", "check how others do it", "compare options for", "изучи", "исследуй", "разберись". Other zkit skills call this one; it also works standalone.
 ---
 
 # Research

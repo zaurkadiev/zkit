@@ -13,7 +13,7 @@ Be a rigorous but fair critic. Vague ideas usually survive because nobody attack
 This skill assumes the main agent is a strong frontier reasoning model (Opus-class) and is written to lean on its judgment rather than script it. The main agent owns everything that needs reasoning and taste: the interview, the critique, comparing approaches, the recommendation and the verdict. Delegate only evidence-gathering to sub-agents (which may run on a cheaper or faster model) and never the conclusions drawn from it — re-read their findings critically and make the call yourself. Treat the steps below as a shape to follow, not a checklist to fill mechanically: skip or compress a step when it adds nothing for this idea, and go deeper where the idea is risky or unclear.
 
 ## Boundary: concept vs. design
-`concepting` answers **what, for whom, why, and in what overall shape**. Everything about **how it is built** belongs to the later design stages of the zkit chain (`requirements` → `high-level-design` → `design-details` → …). Keeping this wall clean matters: concept decisions are cheap to reverse and made on thin evidence, design decisions are expensive and need numbers. Mixing them makes the concept look more certain than it is and buries the real question — whether to build at all.
+`concepting` answers **what, for whom, why, and in what overall shape**. Everything about **how it is built** belongs to the later design stages of the zkit chain (`requirements` → `resource-math` → `contracts` → `data` → `architecture` → `mechanics` → `resilience` → `roadmap`). Keeping this wall clean matters: concept decisions are cheap to reverse and made on thin evidence, design decisions are expensive and need numbers. Mixing them makes the concept look more certain than it is and buries the real question — whether to build at all.
 
 | Belongs in the concept | Belongs to design (do not do here) |
 |---|---|
@@ -26,7 +26,7 @@ This skill assumes the main agent is a strong frontier reasoning model (Opus-cla
 
 Rules of thumb:
 - Name a specific technology only when the choice *is* the concept (e.g. "use an existing SaaS" vs. "build"), or when it's a real competitor.
-- If a sentence is useful only to someone implementing, don't delete it silently: move it to a **"Deferred to design"** list at the end of the document (one line each, tagged with the stage that should pick it up, e.g. `→ high-level-design: outbox pattern for delivery guarantees`). Nothing is lost and the concept stays clean.
+- If a sentence is useful only to someone implementing, don't delete it silently: move it to a **"Deferred to design"** list at the end of the document (one line each, tagged with the stage that should pick it up, e.g. `→ architecture: outbox pattern for delivery guarantees`). Nothing is lost and the concept stays clean.
 - Do not smuggle design in through "recommended approach" or "System concept": they describe shape and trade-offs, not mechanisms.
 - Target length: roughly 1,500-2,500 words. Longer usually means you're designing.
 
@@ -82,7 +82,7 @@ Write a single Markdown file, in the developer's language. It lives in a **proje
 docs/zkit/
   <project>/                  a project: "mvp", or a big feature (kebab-case name); everything about it lives here
     concept.md
-    requirements.md           (later stages add high-level-design.md, design-details.md, ... in the same folder)
+    requirements.md           (later stages add resource-math.md, contracts.md, data.md, architecture.md, ... in the same folder)
     decisions.md              ONE file: every decision as an entry `### D-<n>: title`, numbered within the project
     research/R-<n>-<slug>.md  one file per research question, numbered within the project
 ```

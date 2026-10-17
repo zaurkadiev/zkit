@@ -57,7 +57,7 @@ Ranked list. For each: why it matters, how to resolve it cheaply (experiment, in
 The 3-5 cheapest actions to validate or kill the idea, then hand-off to planning if the verdict is positive.
 
 ## 12. Deferred to design
-One line per implementation-level idea that came up but belongs to later stages, tagged with the target stage (`→ requirements`, `→ high-level-design`, `→ design-details`). Keeps the concept clean without losing the idea.
+One line per implementation-level idea that came up but belongs to later stages, tagged with the target stage (`→ requirements`, `→ architecture`, `→ mechanics`). Keeps the concept clean without losing the idea.
 
 ## Sources
 Numbered URLs referenced above. Mark findings that came from delegated research sub-agents and note their confidence.

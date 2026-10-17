@@ -5,7 +5,7 @@ description: Turn a zkit concept document into a numbered, testable requirements
 
 # Requirements
 
-Take the concept document and produce **one file**: a numbered, testable statement of what the system must do and how well, precise enough that the next stage (`high-level-design`) can be judged against it and the last stage (`tasks`) can be traced to it. The concept said *what we'd build and why*; this step pins down *what exactly must be true when it is built*.
+Take the concept document and produce **one file**: a numbered, testable statement of what the system must do and how well, precise enough that the next stage (`resource-math`) can be judged against it and the last stage (`roadmap`) can be traced to it. The concept said *what we'd build and why*; this step pins down *what exactly must be true when it is built*.
 
 Be a rigorous editor, not a stenographer. Concepts are vague on purpose; the value of this step is exposing what is still undecided (a missing number, two requirements that contradict, a "must" that is really a wish) while it is cheap to fix. Equally, don't invent precision: a number nobody can justify is worse than an honest "assumed, validate in pilot".
 
@@ -21,7 +21,7 @@ The main agent is assumed to be a strong frontier reasoning model (Opus-class) a
 
 Rules of thumb:
 - A requirement says *what* is true, not *how*. "Shall" + subject + observable behaviour + measure. Solution words (database, queue, framework, microservice) don't belong, unless the **user** imposed them — then it is a *constraint*, recorded with its source.
-- If an idea is useful only to an implementer, don't delete it: put it in **Deferred to design** (`→ high-level-design: …`), one line, like the concept stage does.
+- If an idea is useful only to an implementer, don't delete it: put it in **Deferred to design** (`→ architecture: …`), one line, like the concept stage does.
 - Don't re-argue the concept. If the requirements work shows the concept is wrong or incomplete, say so plainly, record it as a finding, and let the developer decide whether to go back (`/zkit:concepting`) — never silently bend a requirement around it.
 
 ## Workflow
@@ -72,7 +72,7 @@ Write a single Markdown file in the developer's language (the concept's language
 
 Also: write each decision made here that changes what gets built — a priority cut, a chosen target, a trade-off resolved — as an entry in `decisions.md` (anchor, `### D-<n>: <decision>`, status line, alternatives, why; continue the numbering). Write mentions as plain `D-<n>` and run `link_docs.py <project-dir>` at the end: it links them and rebuilds the back-links and the summary table. The requirements header links to the concept and decisions; sources in requirement rows link to the concept (`concept §n`), decisions (`D-n`) and research (`[R-n]`). There are no index files.
 
-Then give a short summary in chat: the consistency-check result, counts (Must/Should/Could), the 2-3 riskiest assumed targets, any conflict or concept issue found, and what is still open; offer another question round if gaps remain; name the next step (`high-level-design`). Don't paste the document.
+Then give a short summary in chat: the consistency-check result, counts (Must/Should/Could), the 2-3 riskiest assumed targets, any conflict or concept issue found, and what is still open; offer another question round if gaps remain; name the next step (`resource-math`). Don't paste the document.
 
 ## Quality bar
 - Every requirement is atomic, testable and traced; no solution words unless a user-imposed constraint with a source.

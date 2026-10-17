@@ -222,8 +222,8 @@ skip = ("стек", "stack", "technology", "ключевые решения", "k
 body = "\n".join(v for k, v in S.items() if not any(s in k for s in skip))
 body = re.sub(r"```.*?```", "", body, flags=re.S)
 tech = sorted(set(t.lower() for t in re.findall(tech_re, body)))
-if tech: warn("technology words outside decisions and constraints (design-details?): " + ", ".join(tech))
-if re.search(r"```(?:json|yaml|yml|sql|proto|graphql)\b", hld): warn("schema-like code block; field-level contracts belong to design-details")
+if tech: warn("technology words outside decisions and constraints (contracts or mechanics?): " + ", ".join(tech))
+if re.search(r"```(?:json|yaml|yml|sql|proto|graphql)\b", hld): warn("schema-like code block; field-level contracts belong to contracts")
 
 # ---------- inputs of the earlier steps: boundaries handled, data owned once, limits carried
 body_struct = "\n".join(v for k, v in S.items() if re.search(r"част|parts|интерфейс|interface|c4|структур|structure|контейнер|container|контекст|context", k))

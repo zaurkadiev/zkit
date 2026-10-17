@@ -55,7 +55,7 @@ List concept items with no requirement as **uncovered** and explain (deliberatel
 Ranked. Conflicting requirements and trade-offs awaiting a decision, assumed targets that could break the design if wrong, issues found in the concept. For each: why it matters and the cheapest way to resolve it.
 
 ## 11. Deferred to design
-One line per implementation-level idea that came up, tagged with the target stage (`→ high-level-design`, `→ design-details`).
+One line per implementation-level idea that came up, tagged with the target stage (`→ architecture`, `→ contracts`).
 
 ## 12. Consistency check
 Date; result of `scripts/check_requirements.py` (errors / warnings left and why); verdict of the independent reviewer against the concept; what was fixed; what stays open and where it is recorded.
