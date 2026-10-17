@@ -4,7 +4,7 @@
 Layout:
   docs/zkit/<project>/               a project: 'mvp', a big feature, ... (kebab-case name)
       concept.md
-      requirements.md                (later stages: resource-math.md, contracts.md, data.md, architecture.md, ...: add to STAGES)
+      requirements.md                (later stages: resource-math.md, ux.md (optional), contracts.md, data.md, architecture.md, ...: add to STAGES)
       decisions.md                   ONE file: entries '### D-<n>: title', each with an <a id="D-<n>"> anchor
       research/R-<n>-<slug>.md       one file per research question; ids unique inside the project
 
@@ -18,7 +18,7 @@ Usage:
 """
 import os, re, sys, glob, shutil
 
-STAGES = ["concept", "requirements", "resource-math", "contracts", "data", "architecture", "mechanics", "resilience", "roadmap"]   # later stages: add here and to stage_docs below
+STAGES = ["concept", "requirements", "resource-math", "ux", "contracts", "data", "architecture", "mechanics", "resilience", "roadmap"]   # later stages: add here and to stage_docs below
 rd = lambda p: open(p, encoding="utf-8").read()
 def wr(p, s):
     os.makedirs(os.path.dirname(p) or ".", exist_ok=True); open(p, "w", encoding="utf-8").write(s)
@@ -83,8 +83,9 @@ rs_p = P("resilience.md")
 rmp_p = P("roadmap.md")
 ct_p = P("contracts.md")
 dt_p = P("data.md")
+if_p = P("ux.md")
 rfiles = {re.match(r"R-\d+", os.path.basename(f)).group(0): f for f in glob.glob(P("research", "R-*.md"))}
-stage_docs = [p for p in (concept_p, req_p, rm_p, ct_p, dt_p, hld_p, mc_p, rs_p, rmp_p) if os.path.exists(p)]
+stage_docs = [p for p in (concept_p, req_p, rm_p, if_p, ct_p, dt_p, hld_p, mc_p, rs_p, rmp_p) if os.path.exists(p)]
 
 # ---------- repair links that no longer resolve (after a migration or a rename)
 def repair(f):
@@ -132,7 +133,7 @@ def labels(path):
     for line in rd(path).split("\n"):
         h = re.match(r"#+\s*(.*)", line)
         if h: head = h.group(1).strip(); continue
-        idm = re.match(r"\|\s*((?:FR|NFR|C|B|I|S|A|L|X|E|M|MC|F|T|O|DR|RA|RL|PH|G|TK|EP)-\d+)\s*\|", line) or re.match(r"\s*(?:[-*]|\d+\.)\s*\*\*([PWК]-\d+)\.", line)
+        idm = re.match(r"\|\s*((?:FR|NFR|C|B|I|S|A|L|X|E|M|MC|F|T|O|DR|RA|RL|PH|G|TK|EP|U|J)-\d+)\s*\|", line) or re.match(r"\s*(?:[-*]|\d+\.)\s*\*\*([PWК]-\d+)\.", line)
         label = idm.group(1) if idm else re.sub(r"\s+", " ", head)[:60] or "—"
         for k in set(re.findall(r"\b(D-\d+)\b", line)) | set("R-" + x for x in re.findall(r"\bR-(\d+)\b", line)):
             res.setdefault(k, []).append(label)

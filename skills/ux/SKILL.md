@@ -1,0 +1,65 @@
+---
+name: ux
+description: Optional zkit step for systems that people touch directly. Turns agreed zkit requirements (and resource math) into the human-facing interface design - the surfaces people use (screens and pages, command line, console or TUI, chat, notifications, config files, voice, physical controls such as knobs, buttons and LEDs), the user journeys across them with happy path, empty, error and unavailable states, the feedback and response budgets tied to resource-math limits, input devices and platforms, accessibility and language, and the operations the surfaces need from the system (handed to contracts). Reads requirements, concept, resource-math and decisions in docs/zkit/<project>/, settles each fork with the developer one question at a time (research sub-agents for conventions and facts), writes docs/zkit/<project>/ux.md, and checks it with a script and an independent reviewer. If the system has no human-facing surface (a pure backend, a daemon, a library) the step is recorded as not applicable and skipped. Use this whenever the user wants a UI/UX design, screens, user flows, a CLI design, a console, a config format for people, controls of a device, or says resource math is done and the system has users who touch it - even if they never say "interface". Machine-to-machine APIs belong to the contracts step; visual design (colours, typography, styling) is outside zkit.
+---
+
+# UX
+
+Take the requirements and the resource math and produce **one file**: how people meet the system - which surfaces they use, what they try to do on them, what they see and can do in every state, how fast the system must answer to feel right, and what each surface needs from the system - so that the contracts can be written for the operations the surfaces really need, and not for a guess. Requirements said *what must be true*; this step pins down *what a person experiences while it is true*.
+
+Be a usability skeptic, not a wireframe artist. The expensive mistakes are quiet: an empty state nobody designed; an error the user cannot act on; a journey that needs five operations where the contract offers one; a response budget the architecture cannot meet. Describe journeys and states before layouts, and say honestly which parts of the experience are assumptions about people that only a prototype can confirm.
+
+## Who does what
+The main agent is assumed to be a strong frontier reasoning model (Opus-class) and owns the judgment: which surfaces exist, which journeys matter, what a person must see in each state, which fork is worth a question. Sub-agents only gather evidence (platform conventions, accessibility rules, how comparable products behave) through the `research` skill and never decide. Treat the steps as a shape: compress a surface that is trivial, go deeper where a requirement or a resource-math limit depends on it.
+
+## Optional step
+Not every system has a human-facing surface. Decide this first (step 1). If there is none - a pure backend whose only clients are other programs, a daemon, a library - do not write `ux.md`: record the decision as an entry `### D-<n>: ux: not applicable - <reason>` in `decisions.md` and name `contracts` as the next step. The router and the status hook read that entry as "done". A system whose only people-facing parts are an admin config file or a handful of CLI flags still has an interface: keep it short.
+
+## Boundary: ux vs. neighbours
+| UX (this step) | Earlier (inputs) | Later (do not do here) |
+|---|---|---|
+| Surfaces of every kind that a person uses, journeys across them, states (empty, loading, partial, error, unavailable, denied), messages and what the person can do next, command grammar and config format for people, mapping of physical controls, response and feedback budgets (tied to `L-n`), platforms and input devices, accessibility, language, the operations a surface needs (`→ contracts`) | requirements: actors, scenarios, usability and compliance NFRs; resource-math: the latency and size limits; concept: who the people are | contracts: the machine-readable API behind a surface (operations, payloads, errors, auth); architecture: which part renders or serves what, frameworks and hosts; mechanics: how a control is debounced or a screen refreshed; visual design: colours, fonts, styling |
+
+Rules of thumb:
+- A surface is anything a person reads or operates: a page, a command, a prompt in chat, an e-mail, a knob. Count by what the person does, not by the technology.
+- Journeys come from requirement scenarios and actors, not from screens. A surface that serves no journey is cut or justified.
+- Name a framework or product only if a requirement or constraint fixes it.
+- What a screen shows, in which order and how much fits is UX; how it looks (colours, fonts, styling) is visual design. So sketch the content of key screens as ASCII, and on a small or fixed display (a 128×64 panel, a 2-line LCD, a terminal width) count the real space: characters per line, lines, what is cut first.
+- If a detail is useful only to a later step, put it in **Deferred** (`→ architecture: …`), one line.
+- Don't bend the requirements silently: a journey that cannot meet a requirement (the budget is below what the resource math allows, an accessibility rule cannot be met on the platform) is a finding, and so is a gap (a journey that needs something the requirements never state). Record it, ask the developer, then change the requirement with a dated revision line and a decision, or the approach. If nobody can answer, leave `requirements.md` as it is: put the finding in `ux.md` (Findings) and an *assumed* `D-n`, and let the developer change the requirement later - an unconfirmed edit there would be inherited by every later step as if it were agreed.
+
+## Workflow
+
+### 1. Locate, read, and decide whether the step applies
+Zkit docs folder: default `docs/zkit/`; `AGENTS.md`/`CLAUDE.md` may name another; a path in the request wins. Work in `docs/zkit/<project>/` (ask if unclear). Read `requirements.md`, `concept.md`, `decisions.md`, and `resource-math.md` with `resource_model.py` if they exist; read relevant research. Collect every `→ ux` line: that is the agenda. If code, mock-ups or screens already exist, read them: an existing interface is a constraint.
+- **Applicability:** from the actors and scenarios, does any person operate or read the system directly? If clearly not, state it, record the `ux: not applicable` decision (see Optional step) and stop. If unclear, ask one question.
+- No requirements: say so, write no `ux.md`, and offer `/zkit:requirements` first (recommended), or a short intake: ask the developer 3-4 questions (who uses it, the main task, platforms, what must never go wrong) and write a draft marked "no requirements behind it" only from the answers. If nobody can answer, stop after the offer: journeys made up from one sentence look like a design and mislead every later step.
+- No resource-math: proceed, but say budgets are not tied to numbers and list them as open (recommend running `resource-math` first when responsiveness matters).
+- Requirements or resource-math still draft with an open clarity gate: say what is open; if the developer continues, mark the ux document draft.
+- `ux.md` already exists: run the check from step 5 first; if it reports newer inputs, list what changed before revising.
+
+### 2. Find surfaces and journeys
+From the requirements' people-actors, scenarios, usability NFRs and the concept, list the surfaces (`U-n`): kind (screen or page, command line, console or TUI, chat, notification, config file, voice, physical controls), who uses it, on which platform and input device. Then the journeys (`J-n`): the tasks each actor must complete, with the happy path in steps, and the empty, error and unavailable cases. Cover the first-run and the recovery journeys, which are the ones usually forgotten. Show the developer both lists in a few lines; ask only what is genuinely open.
+
+### 3. Settle the forks - one question at a time
+Typical forks: one surface or several for the same task, guided flow vs. expert shortcuts, how much the surface does offline or while the system is slow, confirmation for destructive actions, notifications vs. polling, language and units, accessibility level, what the first run looks like. For each: 2-3 genuinely different options, what each costs the person and the system, compared against the requirement and the resource-math numbers, with your recommendation. Facts you lack go to `research` (state *recommended / optional / not needed, because …*; run it in the background if the developer agrees; cite `[R-n](research/R-n-<slug>.md)`). Ask the developer **one question per turn, 2-4 options, recommended first marked "(Recommended)"**, in plain language with a concrete example of what the person sees under each option; decide yourself only forks with an obvious usability winner and say so. On "you decide" take your recommendation, mark it *assumed* and name how to validate it (a clickable prototype, five people, dogfooding). Record each settled fork as `D-<n>` in `decisions.md` (anchor, `### D-<n>: …`, status, alternatives, why, date; continue numbering).
+
+### 4. States, budgets, grammar
+For every surface write the states table: empty, loading or working, partial, error, unavailable (the system is down or slow), denied - what the person sees and what they can do next; an error always says what happened and what to do. For interactive surfaces give a feedback budget: how soon the person must see a reaction and how soon the result, as a number or an `L-n` of resource-math; if resource-math lacks the number, add it there (dated note) rather than inventing it here. For each key screen, and for every small or fixed display, add a content **sketch** (ASCII: what is where, what changes, what is cut when space runs out). For a command line, config file or physical controls add a short **card**: the command grammar with exit codes, the config keys a person edits, the control-to-function map. Collect the operations the surfaces need from the system as `→ contracts: …` lines.
+
+### 5. Check - before declaring it done
+1. **Mechanical:** `python3 <skills-dir>/requirements/scripts/link_docs.py <project-dir>`, then `python3 <skill-dir>/scripts/check_ux.py <project-dir>` (stdlib only; exit 1 on errors). It checks: every surface has a kind, actor and serving requirement, and sits in at least one journey; every journey cites existing surfaces and requirements and has a failure case; every surface has an error state; budgets cite existing resource-math limits; Must requirements that touch people are served; header counts, drift against requirements and resource-math, visual-design leaks, the `CLARITY` line; status *agreed* is refused while the gate is open. Fix every ERROR; for each WARN fix it or write one line saying why it stays.
+2. **Semantic:** spawn one fresh reviewer sub-agent (not the writer; give it the paths of `concept.md`, `requirements.md`, `resource-math.md`, `decisions.md`, `ux.md`) with the brief in `references/consistency-review.md`. Judge each finding; when a requirement is wrong, update it with a dated revision line and a decision, then re-run its checker. Without sub-agents do the pass yourself against that list.
+
+**Clarity gate** for *agreed*: every person-actor of the requirements has a journey; every journey has a failure case and every surface an error state; each budget has a figure or a resource-math limit; no fork is open; the reviewer's findings are resolved or recorded. The developer may end the loop earlier; the status then stays *draft* with the open items on top.
+
+### 6. Write the file
+`ux.md` in the developer's language per `references/ux-template.md` (read it first), headings included; keep the column names the checker reads recognisable (it understands both English and Russian ones). Header `Based on` = the actual dates of requirements and resource-math. Run `link_docs.py` at the end. No other index files. Then a short chat summary: the surfaces and journeys in two sentences, the budgets at risk, changes needed in earlier documents, what is open; name the next step (`contracts`). Don't paste the document.
+
+## Quality bar
+- Every person-actor can finish their main task through listed surfaces, and the unhappy paths are designed, not implied.
+- Every surface has its states; every error tells the person what to do.
+- Budgets are numbers or resource-math limits, not "fast".
+- Operations the surfaces need are handed to contracts as `→ contracts` lines; key screens sketched by content; no payloads, no frameworks, no colours, fonts or styling.
+- Assumptions about people are marked with the cheapest way to validate them.
+- Short beats long: roughly 1,000-2,500 words; past about 12 surfaces the model is probably a screen inventory in disguise (group the small ones).

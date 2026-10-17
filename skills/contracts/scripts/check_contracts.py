@@ -8,7 +8,7 @@ import re, sys, os, glob, json
 
 d = next((a for a in sys.argv[1:] if not a.startswith("--")), "docs/zkit")
 rdp = lambda n: open(os.path.join(d, n), encoding="utf-8").read() if os.path.exists(os.path.join(d, n)) else None
-doc, req, rm = rdp("contracts.md"), rdp("requirements.md"), rdp("resource-math.md")
+doc, req, rm, ifc = rdp("contracts.md"), rdp("requirements.md"), rdp("resource-math.md"), rdp("ux.md")   # ux.md: optional step
 if doc is None: sys.exit("ERROR: no contracts.md in %s (pass the project folder)" % d)
 out = []
 err = lambda m: out.append("ERROR  " + m)
@@ -133,7 +133,7 @@ head = doc.split("\n## ")[0]
 cm = re.search(r"(\d+)\s*X\b", head)
 nx = len([r for r in rows if r["_id"].startswith("X")])
 if not cm or int(cm.group(1)) != nx: err("header Counts must read '%d X' to match the index (I-n rows are not counted)" % nx)
-for nm, text in (("requirements", req), ("resource-math", rm)):
+for nm, text in (("requirements", req), ("resource-math", rm), ("ux", ifc)):
     if text is None: continue
     rdte = re.search(r"(?:Дата|Date):\*\*\s*([\d-]+)", text); bd = re.search(nm + r"[^\n]*?(\d{4}-\d{2}-\d{2})", head)
     if not bd: warn("header has no 'Based on' date for %s" % nm)

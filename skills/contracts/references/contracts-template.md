@@ -5,8 +5,8 @@ Aim for one to two pages plus the spec files in `contracts/`. Sections in this o
 ```markdown
 # <Name> — Contracts
 
-> **Links:** [concept](concept.md) · [requirements](requirements.md) · [resource-math](resource-math.md) · [decisions](decisions.md)
-> **Status:** draft / agreed (agreed only when the clarity gate passes, SKILL.md step 5) · **Date:** <date> · **Based on:** [requirements.md](requirements.md) (<its date>), [resource-math.md](resource-math.md) (<its date>)
+> **Links:** [concept](concept.md) · [requirements](requirements.md) · [resource-math](resource-math.md) · [ux](ux.md) (if the step was done) · [decisions](decisions.md)
+> **Status:** draft / agreed (agreed only when the clarity gate passes, SKILL.md step 5) · **Date:** <date> · **Based on:** [requirements.md](requirements.md) (<its date>), [resource-math.md](resource-math.md) (<its date>), [ux.md](ux.md) (<its date>, if present)
 > **Counts:** <n> X   (the checker compares this with the table)
 
 ## 1. Summary

@@ -1,0 +1,66 @@
+{
+ "skill_name": "ux",
+ "evals": [
+  {
+   "id": 0,
+   "prompt": "Требования и resource-math карманного синтезатора готовы (проект docs/zkit/synth). Сделай ux. Разработчика на связи нет: по каждому открытому вопросу бери свою рекомендацию и помечай допущением.",
+   "expected_output": "ux.md for a device with physical controls: surfaces of kind controls (knobs, buttons, LEDs) and a MIDI/USB host side if the requirements have one, journeys (play a patch, save a preset, recover from a bad preset), states including unavailable, controls card mapping control to function, feedback budgets tied to resource-math latency limits; no screens invented; operations handed to contracts as lines; check_ux.py without ERROR",
+   "assertions": [
+    "ux.md создан, есть поверхности вида controls и карточка соответствия органов управления функциям",
+    "бюджеты обратной связи ссылаются на L-n из resource-math или имеют число",
+    "у каждой поверхности есть состояние error, у каждого сценария есть случай отказа",
+    "не выдуманы экраны и облачные функции, которых нет в требованиях",
+    "check_ux.py завершается без ERROR",
+    "есть набросок содержимого дисплея 128×64 (что в какой строке, что обрезается)"
+   ],
+   "files": [
+    "fixtures/rt-synth"
+   ]
+  },
+  {
+   "id": 1,
+   "prompt": "Требования и resource-math сервиса приёма вебхуков готовы (проект docs/zkit/ingest): людей-пользователей нет, только другие системы и дежурный, который смотрит логи. Сделай ux.",
+   "expected_output": "Decides the step is not applicable (no human-facing surface beyond logs and metrics owned by operations): writes no ux.md, records a decision 'ux: not applicable - <reason>' in decisions.md, names contracts as the next step; does not invent screens",
+   "assertions": [
+    "ux.md не создан",
+    "в decisions.md добавлено решение 'ux: not applicable' с причиной",
+    "следующим шагом назван contracts",
+    "экраны и сценарии не выдуманы"
+   ],
+   "files": [
+    "fixtures/ingest"
+   ]
+  },
+  {
+   "id": 2,
+   "prompt": "Хочу бота, который присылает мне в Telegram сводку цен на авиабилеты. Сделай ux.",
+   "expected_output": "Notices there are no requirements; writes no ux.md; offers /zkit:requirements first (recommended) or a short intake as 3-4 questions to the developer; since nobody answers, stops after the offer and invents no surfaces or journeys",
+   "assertions": [
+    "сказано, что нет requirements",
+    "ux.md не создан",
+    "предложен /zkit:requirements и/или заданы 3-4 вопроса для intake",
+    "поверхности и сценарии не выдуманы"
+   ],
+   "files": [
+    "fixtures/empty"
+   ]
+  },
+  {
+   "id": 3,
+   "prompt": "Требования и resource-math онлайн-записи в барбершоп готовы (проект docs/zkit/booking). Сделай ux. Разработчика на связи нет: по каждому открытому вопросу бери свою рекомендацию и помечай допущением.",
+   "expected_output": "ux.md for a web product with two sides: client on mobile browser (book, reschedule/cancel by SMS link, SMS as notification surface) and admin/master on laptop (day/week schedule, phone booking, blocking time, no-show); journeys incl. slot taken meanwhile (NFR-3), late cancel (< 3 h), SMS not delivered; states empty/loading/error/unavailable; budgets tied to L-1/L-2; content sketch of key screens; accessibility from NFR-4; phone privacy (NFR-5) reflected in what each surface shows; operations handed to contracts; no colours/fonts/frameworks; check_ux.py without ERROR",
+   "assertions": [
+    "есть поверхности для клиента (мобильный браузер, SMS) и для администратора/мастера",
+    "есть сценарий «время заняли, пока клиент выбирал» (NFR-3) и поздняя отмена (FR-3)",
+    "бюджеты ссылаются на L-1/L-2 или имеют число",
+    "есть набросок содержимого ключевых экранов (выбор времени или расписание)",
+    "NFR-4 (доступность) и NFR-5 (видимость телефона) отражены в документе",
+    "операции переданы в contracts строками → contracts",
+    "check_ux.py завершается без ERROR"
+   ],
+   "files": [
+    "fixtures/web-booking"
+   ]
+  }
+ ]
+}
