@@ -1,11 +1,11 @@
 ---
-name: chain
-description: Entry point and router for the whole zkit design chain (concepting, requirements, resource-math, contracts, data, architecture, mechanics, resilience, roadmap). Looks at docs/zkit/<project>/, works out which steps exist, which are agreed or stale, runs the cross-document link check, says what comes next and starts that step's skill. Use this whenever the user says "continue the project", "what's next", "where did we stop", "start a new project/idea with zkit", "run the whole chain", "from idea to roadmap", or names a project under docs/zkit without naming a step - even if they never say "chain".
+name: flow
+description: Entry point and router for the whole zkit design chain (concepting, requirements, resource-math, contracts, data, architecture, mechanics, resilience, roadmap). Looks at docs/zkit/<project>/, works out which steps exist, which are agreed or stale, runs the cross-document link check, says what comes next and starts that step's skill. Use this whenever the user says "continue the project", "what's next", "where did we stop", "start a new project/idea with zkit", "run the whole chain", "from idea to roadmap", or names a project under docs/zkit without naming a step - even if they never say "flow".
 ---
 
-# Chain
+# Flow
 
-The router for zkit. It owns no design logic: each step's skill does its own work and interviews. This skill only answers **"where is this project, and what is the next step?"** and then hands over, so the developer never has to remember the order or run the checks by hand.
+The router for zkit (`/zkit:flow`). It owns no design logic: each step's skill does its own work and interviews. This skill only answers **"where is this project, and what is the next step?"** and then hands over, so the developer never has to remember the order or run the checks by hand.
 
 ## The order
 `concepting` → `requirements` → `resource-math` → `contracts` → `data` → `architecture` → `mechanics` → `resilience` → `roadmap` (helper at any point: `research`).
