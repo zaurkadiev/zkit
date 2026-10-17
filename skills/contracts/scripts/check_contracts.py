@@ -42,7 +42,7 @@ if req is not None:
 else: warn("no requirements.md: serving requirements cannot be checked")
 limits = set(re.findall(r"\bL-\d+\b", rm)) if rm else set()
 
-rows = tables(doc, r"X-\d+$")
+rows = tables(doc, r"[XI]-\d+$")
 if not rows: err("no boundary rows (X-n) in contracts.md")
 seen = set()
 for r in rows:
@@ -52,13 +52,13 @@ unver_must = []
 for r in rows:
     x = r["_id"]; direction = col(r, r"direction|направл").lower(); spec = re.sub(r"[\[\]`]|\(.*?\)", "", col(r, r"spec|файл|спецификац")).strip()
     serves = ids_of(col(r, r"serves|обслужив|требован"))
-    if not re.search(r"consumed|published|потребл|публик", direction): err("%s: direction must be consumed or published" % x)
+    if not re.search(r"consumed|published|internal|потребл|публик|внутренн", direction): err("%s: direction must be consumed, published or internal (I-n, written by mechanics)" % x)
     if not serves: err("%s serves no requirement" % x)
     for s in serves:
         if reqs and s not in reqs: err("%s serves %s, which is not in requirements" % (x, s))
     path = os.path.join(d, spec) if spec else None
     if not spec or not os.path.exists(path): err("%s: spec file '%s' does not exist" % (x, spec)); continue
-    consumed = bool(re.search(r"consumed|потребл", direction))
+    consumed = bool(re.search(r"consumed|потребл", direction)); internal = bool(re.search(r"internal|внутренн", direction))
     ver = col(r, r"verif|провер")
     if consumed and (not re.search(r"verified|проверен|R-\d+", ver, re.I) or re.search(r"unverified|не провер", ver, re.I)):
         warn("%s is consumed and not verified against the counterparty's documentation" % x)
@@ -74,7 +74,7 @@ for r in rows:
     if not isinstance(S, dict): err("%s: %s is not a mapping" % (x, spec)); continue
     if S.get("x-boundary") != x: err("%s: %s has x-boundary '%s'" % (x, spec, S.get("x-boundary")))
     dd = str(S.get("x-direction", "")).lower()
-    if dd and dd.startswith("cons") != consumed: err("%s: x-direction in %s disagrees with the index" % (x, spec))
+    if dd and dd.startswith("cons") != consumed and not (internal and dd.startswith("int")): err("%s: x-direction in %s disagrees with the index" % (x, spec))
     for l in S.get("x-limits") or []:
         if rm is not None and l not in limits: err("%s: x-limits cites %s, not in resource-math" % (x, l))
     if consumed and not S.get("x-limits") and rm is not None: warn("%s: consumed boundary with no x-limits (quota, rate, price, latency of the counterparty)" % x)
@@ -131,7 +131,8 @@ for f in sorted(files - listed): warn("%s is not listed in the index" % f)
 # ---------- requirements coverage, counts, drift, status, clarity
 head = doc.split("\n## ")[0]
 cm = re.search(r"(\d+)\s*X\b", head)
-if not cm or int(cm.group(1)) != len(rows): err("header Counts must read '%d X' to match the index" % len(rows))
+nx = len([r for r in rows if r["_id"].startswith("X")])
+if not cm or int(cm.group(1)) != nx: err("header Counts must read '%d X' to match the index (I-n rows are not counted)" % nx)
 for nm, text in (("requirements", req), ("resource-math", rm)):
     if text is None: continue
     rdte = re.search(r"(?:Дата|Date):\*\*\s*([\d-]+)", text); bd = re.search(nm + r"[^\n]*?(\d{4}-\d{2}-\d{2})", head)

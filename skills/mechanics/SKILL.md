@@ -1,0 +1,64 @@
+---
+name: mechanics
+description: Turn the agreed zkit architecture into the mechanics inside its parts - the state machines (as tables checked for completeness and reachability), the algorithms and protocols that carry a requirement (quota reservation, retries and idempotency keys, ordering and locking, queues and ring buffers, caches and their invalidation, timing and interrupt budgets, memory pools), the exact machine-readable formats of internal interfaces, and small executable checks (simulations or property tests that enumerate interleavings and failures and prove their own invariants can fail) for the one to three riskiest mechanisms. Reads requirements, resource-math, contracts, data, architecture and decisions in docs/zkit/<project>/, settles each fork with the developer one question at a time (research sub-agents for facts), writes docs/zkit/<project>/mechanics.md plus mechanics/model_*.py, and checks them with a script (which runs the models) and an independent reviewer. Use this whenever the user wants detailed design, low-level design, state machines, algorithms, concurrency or race analysis, idempotency or retry rules, exact internal API or message formats, "how does component X actually work", or says the architecture is done and asks for the next step - even if they never say "mechanics". Failure handling in depth, security design and observability belong to resilience; phases and tasks to roadmap.
+---
+
+# Mechanics
+
+Take the architecture and produce **a document and a few executable checks**: for every part whose inner workings carry a requirement, how it actually works - its states and transitions, its algorithms and protocols, its timing and memory behaviour, the exact format of every internal interface - and proof, by running it, that the riskiest mechanisms keep their invariants under concurrency and failure. The architecture said *which parts and who owns what*; this step says *how each part behaves when it is busy, late, restarted or attacked*, so that `resilience` and `roadmap` have something exact to harden and to estimate.
+
+Be a skeptical implementer, not a pseudocode typist. The expensive bugs are quiet: two callers both see "3% left" and both pass; a retry repeats a payment because the key changed; a task sits in a state nothing can leave. A table that reads fine can hide all three. So read every mechanism asking *what happens if two of these run at once, if the process dies right here, if the message arrives twice or late*, and make the dangerous ones run.
+
+## Who does what
+The main agent is assumed to be a strong frontier reasoning model (Opus-class) and owns the judgment: which mechanisms deserve a section, what the invariants are, which interleavings and failures to enumerate. Sub-agents only gather evidence (how a database really behaves under a lock mode, a protocol's retry rules, a library's guarantees, typical numbers) through the `research` skill, and never decide. Treat the steps as a shape: compress what is trivial, go deep where an invariant is expensive to break.
+
+## Boundary: mechanics vs. neighbours
+| Earlier steps (inputs) | Mechanics (this step) | Later steps (do not do here) |
+|---|---|---|
+| architecture: parts `B-n`, owners, interfaces `I-n` in words, scenarios, technology decisions; contracts: external boundaries; data: entities, lifecycle; resource-math: limits | State machines, algorithms, protocols, concurrency and timing rules per part; exact formats of internal interfaces (specs in `contracts/`, ids `I-n`); executable checks for the riskiest mechanisms | resilience: failure handling in depth, security design, telemetry; roadmap: phases, spikes, tasks; implementation: production code, libraries, tests beyond the models |
+
+Rules of thumb:
+- A **mechanism** (`MC-n`) is a rule that must hold for a requirement to hold. Give a section only to parts whose mechanics carry a requirement (correctness, money, isolation, timing, ordering). List the rest as **trivial parts** in one line each with the reason. A document with a section per part is padding.
+- State machines are tables (state × event → next state, with guards and effects), including the events that matter most: timeout, crash and restart, duplicate delivery, cancellation. The checker verifies declared states, reachability and exits.
+- Pseudocode and formulas in the language of the technology decision (or neutral), only for the lines that matter; invariants in words and as checkable conditions. No production code.
+- Executable checks are models, not the implementation: a few dozen lines of stdlib Python that enumerate interleavings and crash points of the mechanism and assert its invariants. Every model has a `broken` variant that must violate an invariant, otherwise the check proves nothing.
+- Internal interface formats go into `contracts/` as OpenAPI/AsyncAPI/JSON Schema or a card, with boundary id `I-n` (the `contracts` skill has the skeletons); list them in the document. Only interfaces that cross a process or trust boundary, or carry a requirement, need a spec; plain in-process calls do not.
+- If a detail is useful only to a later step, put it in **Deferred** (`→ resilience: …`, `→ roadmap: spike …`), one line.
+- Don't bend earlier documents silently. If a mechanism cannot meet a requirement, number or contract, record it as a finding, ask the developer, then revise the earlier document with a dated revision line and a decision.
+
+## Workflow
+
+### 1. Locate and read the inputs
+Zkit docs folder: default `docs/zkit/`; `AGENTS.md`/`CLAUDE.md` may name another; a path in the request wins. Work in `docs/zkit/<project>/` (ask if unclear). Read `requirements.md`, `concept.md`, `resource-math.md` with `resource_model.py`, `contracts.md` with `contracts/`, `data.md`, `architecture.md`, `decisions.md` and relevant research. Collect every `→ mechanics` line: that is the agenda. If code exists for this system, read the relevant parts: existing behaviour is a constraint.
+- No requirements or no architecture: say so and offer the missing step first (`/zkit:requirements`, `/zkit:architecture`), or a short intake marked "no requirements/architecture behind it". Don't invent them.
+- Inputs still draft with an open clarity gate: say what is open; if the developer continues, mark the mechanics draft.
+- `mechanics.md` already exists: run the check from step 6 first; if it reports newer inputs or failing models, list what changed before revising.
+
+### 2. Find the mechanisms
+Go through the architecture's parts, interfaces, scenarios and risks, and the `→ mechanics` lines. For each part ask what has to be *exactly right*: a lifecycle with states (task, approval, session, environment, voice, preset), money or quota arithmetic, anything that must happen once, in order, within a deadline, under a lock, or in a bounded amount of memory. Write the mechanism list (`MC-n`: part, what, kind - state machine / algorithm / protocol / concurrency / timing / memory / format -, requirements and limits served, how it will be verified, risk H/M/L) and the trivial parts. Show it to the developer in a few lines; ask only what is genuinely open.
+
+### 3. Settle the forks - one question at a time
+Typical forks: optimistic vs. pessimistic concurrency, where idempotency lives (key, natural, outbox), polling vs. push, retry budget and backoff, who owns timeouts, reservation vs. post-hoc accounting, static vs. pooled memory, interrupt priorities, cache invalidation. For each: 2-3 genuinely different options, what each costs and where it fails, compared against the requirement and the resource-math numbers, with your recommendation. Facts you lack go to `research` (state *recommended / optional / not needed, because …*; run it in the background if the developer agrees; cite `[R-n](research/R-n-<slug>.md)`). Ask the developer **one question per turn, 2-4 options, recommended first marked "(Recommended)"**, in plain language with a concrete example of what goes wrong and what each option means; decide yourself only forks with an obvious engineering winner and say so. On "you decide" take your recommendation, mark it *assumed* and name how to validate it. Record settled forks as `D-<n>` in `decisions.md` (anchor, `### D-<n>: …`, status, alternatives, why, date; continue numbering).
+
+### 4. Write the mechanisms
+Per mechanism, in the document: purpose and requirement; the state-machine table (first row = initial state; terminal states marked `(final)`; events include timeout, crash/restart, duplicate, cancel); the algorithm or protocol in short pseudocode or formulas; **invariants** ("reserved + spent ≤ quota at every instant"); the interleavings and failures that threaten them; numbers from resource-math it must respect (`L-n`); what it needs from the interfaces. Then the exact formats of the internal interfaces that need them, as specs in `contracts/` (`x-boundary: I-n`, `x-direction: internal`) with examples that validate; list them in the *Internal contracts* section.
+
+### 5. Make the riskiest run
+For the one to three mechanisms marked H (money, isolation, exactly-once, deadlines): write `mechanics/model_<slug>.py` (stdlib; `run(broken=False)` returns a list of invariant violations, empty when they hold; `run(broken=True)` switches off the mechanism's protection and must return at least one violation). Enumerate the interleavings of the concurrent actors and the crash points (itertools permutations are usually enough); keep each run under a few seconds. If a model finds a violation in the design, that is the most valuable result of the step: fix the mechanism, record the decision, re-run. Reference each model from its mechanism row (`Verified by`).
+
+### 6. Check - before declaring it done
+1. **Mechanical:** `python3 <skills-dir>/requirements/scripts/link_docs.py <project-dir>`, then `python3 <skill-dir>/scripts/check_mechanics.py <project-dir>` (stdlib only; exit 1 on errors) and, if you added `I-n` specs, `python3 <skills-dir>/contracts/scripts/check_contracts.py <project-dir>`. It checks: mechanism rows complete and serving existing requirements; every architecture part has a mechanism or a trivial-part line; state machines declare every target state, every state is reachable and has an exit, and there is a failure event; executable models run, hold their invariants and fail when `broken`; every H-risk mechanism has a model; internal contract specs exist; header counts and drift against all earlier documents; the `CLARITY` line; status *agreed* is refused while the gate is open. Fix every ERROR; for each WARN fix it or write one line saying why it stays.
+2. **Semantic:** spawn one fresh reviewer sub-agent (not the writer; give it the paths of the project's documents, `contracts/` and `mechanics/`) with the brief in `references/consistency-review.md`. Judge each finding; when an earlier document is wrong, revise it with a dated revision line and a decision, then re-run its checker. Without sub-agents do the pass yourself against that list.
+
+**Clarity gate** for *agreed*: every H-risk mechanism has a passing executable model; no fork is open; every requirement and limit a mechanism claims to serve is actually met by its invariants; the reviewer's findings are resolved or recorded. The developer may end the loop earlier; the status then stays *draft* with the open items on top.
+
+### 7. Write the file
+`mechanics.md` in the developer's language per `references/mechanics-template.md` (read it first). Header `Based on` = the actual dates of requirements, resource-math, contracts and architecture. Run `link_docs.py` at the end. No other index files. Then a short chat summary: the mechanisms that matter, what the models found, changes forced on earlier documents, what is open; name the next step (`resilience`). Don't paste the document.
+
+## Quality bar
+- Every mechanism traces to a requirement or limit; every part is either covered or declared trivial with a reason.
+- State machines are complete: no undeclared state, no unreachable state, no dead end, a failure path.
+- The riskiest mechanisms were run, their invariants hold, and the broken variant proves the check can fail.
+- Interface formats are exact where they cross a trust or process boundary, and their examples validate.
+- No production code, no tests beyond the models, no failure-handling policy (that is `resilience`).
+- Short beats long: roughly 2,500-4,500 words around the models; if every part has a section, the mechanisms were not selected.
