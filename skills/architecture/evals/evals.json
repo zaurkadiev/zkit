@@ -1,0 +1,49 @@
+{
+ "skill_name": "architecture",
+ "evals": [
+  {
+   "id": 0,
+   "prompt": "Требования, resource-math, contracts и data Open Agent Bot готовы (проект docs/zkit/mvp). Сделай architecture. Разработчика на связи нет: по каждому открытому вопросу бери свою рекомендацию и помечай допущением.",
+   "expected_output": "architecture.md with 4-8 parts (B-n) owning all data entities exactly once, every contract boundary X-n handled, C4 level 1 and 2 (level 3 for 1-2 risky parts), internal interfaces in words with delivery semantics, key decisions D-n incl. expensive technology choices (database engine, queue, hosting, isolation technology) with options, evidence and price check against resource-math, 3-6 scenarios incl. failures, traceability, reconciliation with earlier documents (contracts/resource-math/data/requirements findings), check_architecture.py without ERROR",
+   "assertions": [
+    "architecture.md создан, check_architecture.py без ERROR",
+    "есть C4 уровни 1 и 2 (уровень 3 для 1–2 частей)",
+    "каждая граница X-n обработана частью, каждая сущность E-n имеет ровно одного владельца",
+    "решения по дорогим технологиям (БД, очередь, хостинг, изоляция) имеют варианты, источники и проверку цен по resource-math",
+    "есть сценарии отказов, а не только основной поток",
+    "в документе нет алгоритмов, схем полей и библиотек",
+    "раздел согласования с прежними шагами фиксирует правки в contracts/resource-math/data/requirements"
+   ],
+   "files": [
+    "fixtures/oab-mvp"
+   ]
+  },
+  {
+   "id": 1,
+   "prompt": "Хочу бота, который присылает мне в Telegram сводку цен на авиабилеты. Сделай architecture.",
+   "expected_output": "Notices there are no requirements, does not fabricate them; offers /zkit:requirements first or a short intake clearly marked 'no requirements behind it'",
+   "assertions": [
+    "не создан architecture.md с выдуманными требованиями",
+    "сказано, что нет requirements, и предложен /zkit:requirements или короткий intake с пометкой"
+   ],
+   "files": [
+    "fixtures/empty"
+   ]
+  },
+  {
+   "id": 2,
+   "prompt": "Требования, resource-math, contracts и data карманного синтезатора готовы (проект docs/zkit/synth). Сделай architecture. Разработчика на связи нет: по каждому открытому вопросу бери свою рекомендацию и помечай допущением.",
+   "expected_output": "Adapts to embedded real-time: parts as firmware modules/tasks (audio engine, MIDI input, control scan, preset storage, power/startup), C4 containers as MCU peripherals/tasks/DMA, owners for every data entity and memory region, boundaries X-n handled, concurrency model (ISR/DMA/main loop) as an architecture decision, technology choices (MCU family, RTOS vs bare-metal) with options and price check against the 25 EUR budget; no cloud/DB invented; check_architecture.py without ERROR",
+   "assertions": [
+    "части — прошивочные модули/задачи, не облачные сервисы",
+    "модель конкурентности (прерывания/DMA/основной цикл) выбрана как решение с вариантами",
+    "выбор МК и RTOS/без RTOS проверен против бюджета 25 € и лимитов",
+    "все сущности и области памяти имеют владельца, границы X-n обработаны",
+    "check_architecture.py без ERROR"
+   ],
+   "files": [
+    "fixtures/rt-synth"
+   ]
+  }
+ ]
+}

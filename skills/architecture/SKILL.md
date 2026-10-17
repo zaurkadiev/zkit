@@ -1,0 +1,76 @@
+---
+name: architecture
+description: Turn agreed zkit requirements, resource math, boundary contracts and the data model into the system's architecture - the big parts and who owns which data, the links between them (internal interfaces in words with delivery semantics), C4 diagrams (context and containers for everything, components for the one or two riskiest parts), the expensive-to-reverse technology choices (runtime, database engine, queue, hosting, isolation technology) settled with options and evidence, key scenarios walked through the structure including failures, and traceability from every Must requirement, boundary, entity and resource-math limit to a part. Reads requirements, concept, resource-math, contracts, data and decisions in docs/zkit/<project>/, settles each fork with the developer one question at a time (research sub-agents for facts), writes docs/zkit/<project>/architecture.md, and checks it with a script and an independent reviewer. Use this whenever the user wants architecture, a high-level design or HLD, C4, system structure, "what are the components", build vs adopt, technology or product choice, or says data/contracts are done and asks for the next step - even if they never say "architecture". Algorithms, data structures inside parts and machine-readable internal contracts belong to the mechanics step.
+---
+
+# Architecture
+
+Take the requirements, the numbers, the boundaries and the data, and produce **one file**: the structure that makes them true - which big parts exist, what each is responsible for and owns, how they talk, which few expensive decisions (including the technology under them) shape everything else - with proof that it can meet the requirements. Earlier steps said *what must be true*, *how much*, *what crosses the edge* and *what is stored*; this step answers *what structure carries all that*, so that `mechanics`, `resilience` and `roadmap` have something solid to refine.
+
+Be an honest architect, not a diagram painter. A structure that looks tidy but was never walked through the hard requirements (restart in the middle of a send, quota exhausted, hostile input) only moves the failure to implementation. Prefer the simplest structure that serves the drivers and the load; say where complexity is speculative. A technology choice that the resource math cannot afford, or that a contract cannot speak to, is not a choice.
+
+## Who does what
+The main agent is assumed to be a strong frontier reasoning model (Opus-class) and owns the judgment: choosing drivers, structuring the parts, comparing options, walking scenarios, recommending. Sub-agents only gather evidence (what a foundation product really supports, licences, limits, real prices, how a pattern fails in practice) through the `research` skill, and never decide. Treat the steps as a shape: compress what adds nothing, go deeper where a requirement is hard.
+
+## Boundary: architecture vs. neighbours
+| Earlier steps (inputs) | Architecture (this step) | Later steps (do not do here) |
+|---|---|---|
+| requirements: what and how well; resource-math: numbers, ceilings per unit; contracts: external boundaries `X-n`; data: entities `E-n`, storage classes, lifecycle | Parts `B-n` and what each owns (every `E-n` has exactly one owning part), which part handles each `X-n`, internal interfaces `I-n` in words with delivery semantics, C4 levels 1-2 (and 3 for 1-2 risky parts), expensive technology decisions `D-n` with options and evidence, scenarios `S-n`, traceability | mechanics: algorithms, data structures inside parts, machine-readable internal contracts (`I-n` specs in `contracts/`), tables and indexes; resilience: failure handling in depth, security design, observability; roadmap: phases, spikes, tasks |
+
+Rules of thumb:
+- Choose a **style** (adopt a foundation or build, queues or direct calls, where isolated work lives, single or multi-tenant) and, for choices that are **expensive to reverse** (runtime/language, database engine, queue, hosting, isolation technology, adopt-vs-build of a foundation), a **product** with options, evidence and a `D-n`. Libraries and anything cheap to swap wait for implementation. Check each product choice against resource-math prices and limits and against the contracts it must speak.
+- Internal interfaces are operations as verb + object between parts, inputs and outputs in words, plus delivery semantics where a requirement demands them (idempotent, at-most-once, ordered). The exact format is mechanics' job. External operations are not repeated here: cite the `X-n` contract.
+- When the architecture changes an external contract (a published API will look different with these parts, a consumed contract cannot be honoured), revise it in `contracts/` with a dated revision line and a decision, then re-run its checker. Do not let the two documents disagree.
+- C4 is drawn here, in Mermaid, in the style of the C4 model: level 1 (system, people, external systems from contracts), level 2 (the parts that run separately, databases, queues, other infrastructure nodes, links labelled with `I-n`), level 3 (components) only for the one or two parts whose inner structure carries a requirement. Don't draw the same thing at two levels.
+- If a detail is useful only to a later step, put it in **Deferred** (`→ mechanics: …`), one line.
+- Don't re-argue the earlier documents. If the design shows a requirement, number or contract is wrong or impossible, record it as a finding and let the developer decide; update the earlier document (dated revision line plus a decision) instead of silently bending the design.
+
+## Workflow
+
+### 1. Locate and read the inputs
+Zkit docs folder: default `docs/zkit/`; `AGENTS.md`/`CLAUDE.md` may name another; a path in the request wins. Work in `docs/zkit/<project>/` (ask if unclear). Layout shared by all zkit skills: `concept.md`, `requirements.md`, `resource-math.md` + `resource_model.py`, `contracts.md` + `contracts/`, `data.md`, `architecture.md`, `decisions.md` (entries `D-<n>`), `research/R-<n>-<slug>.md`, no index files. Read all that exist, fully, plus relevant research. Collect every `→ architecture` line from them: that is your starting agenda. If the repository already contains code for this system, look at it: existing structure is a constraint and a candidate foundation.
+- No requirements: say so and offer `/zkit:requirements` first, or a short intake marked "no requirements behind it". Don't fabricate requirements.
+- No resource-math, contracts or data: proceed only if the developer wants to, mark the design draft, and list what it rests on unconfirmed; recommend running the missing steps first for any system with real load, boundaries or stored data.
+- Inputs still draft with an open clarity gate: say what is open (the checkers print `CLARITY` lines) and offer to finish it first; if the developer continues, mark the design draft.
+- Concept verdict *Validate first*: design the recommended path anyway, keep its gates visible as risks, and prefer structures that keep the validation cheap.
+- Superseded decisions are history; design from the current ones.
+- `architecture.md` already exists (or the older `high-level-design.md`): run the check from step 7 first; if it reports newer inputs, list what changed before revising. Rename the older file to `architecture.md`.
+
+### 2. Extract the drivers - before designing anything
+Read everything as an architect: which requirements are *architecturally significant* (hard to meet, numeric, cross-cutting, or constraining the structure), which resource-math limits and ceilings bind a part, which boundaries `X-n` need a dedicated guardian, which entities `E-n` need a transaction, isolation or a deletion path. Write the driver table (driver → why it shapes the structure), rank the top 3-5 quality attributes, and gather the constraints and load figures the design is sized against. Show this to the developer in a few lines and ask only if the ranking is genuinely open (e.g. cost vs. reliability) - one question, with your recommendation.
+
+### 3. Settle the forks - one question at a time
+List the decisions that are expensive to reverse: adopt vs. build a foundation, how work is modelled (workers, actors, agents), where isolated environments live, how approvals are enforced, tenant isolation, how state and history are kept (database engine, queue, file storage), managed vs. self-hosted, runtime and language, hosting. For each fork:
+- 2-3 genuinely different options, what each costs and where it is the wrong choice, compared on the drivers **and on resource-math prices and limits**, with your recommendation.
+- Facts you lack (does the foundation support X, licence terms, real prices, limits) go to `research`: state your opinion - *recommended / optional / not needed, because …* - and, if the developer agrees, run it in the background and keep going. Cite reports as `[R-n](research/R-n-<slug>.md)`.
+- Ask the developer **one question per turn, 2-4 options, your recommended one first marked "(Recommended)"**, in plain language with a concrete example of what goes wrong and what each option means (they may not share your jargon); use an interactive question tool if available. Decide yourself only forks that are pure engineering with an obvious winner, and say so. When the developer says "you decide", take your recommendation and mark it *assumed* with the way to validate it.
+- Record each settled fork as `D-<n>` in `decisions.md` (anchor, `### D-<n>: …`, status, alternatives, why, date; continue numbering).
+
+### 4. Build the structure
+Derive 4-8 parts (`B-n`) from the decisions and drivers; fewer than ten is the rule. For each: one-sentence responsibility, the entities it owns (`E-n`, exactly one owner per entity, and per piece of in-process state), the boundaries it faces (`X-n`), the limits it carries (`L-n`), build/adopt/buy, and the requirements it serves. Then the interfaces (`I-n`): who talks to whom, what passes, sync/async/event, and delivery semantics where a requirement demands them. Test each part: if you can't say what would change it, merge it; if it has two reasons to change, split it. Draw the C4 diagrams from the tables, not the other way round. Add the technology table (the settled expensive choices with their `D-n`).
+
+### 5. Walk the scenarios
+Pick 3-6 scenarios (`S-n`): the main flow and at least two taken from the hardest Must requirements (restart in the middle of an external action, quota exhausted mid-goal, hostile input, a part unavailable, the human not answering, a deletion request reaching every copy). Walk each step by step through parts and interfaces; for each write the outcome against the requirement and any gap found. A gap is a finding: fix the structure, or record it as a risk or an issue in an earlier document. A scenario that always passes proves nothing - choose ones that could fail.
+
+### 6. Reconcile with the earlier steps
+Before the check: every boundary `X-n` has a handling part; every entity `E-n` one owner and its storage class matches a technology decision; resource-math limits `L-n` are carried by the parts that serve them and the chosen technology's prices fit the budget (rerun `check_resource_math.py --update` if you changed an assumption there, with a dated note); contracts the architecture invalidates are revised. Write down each reconciliation as a finding or a decision.
+
+### 7. Check - before declaring it done
+1. **Mechanical:** run `python3 <skills-dir>/requirements/scripts/link_docs.py <project-dir>`, then `python3 <skill-dir>/scripts/check_architecture.py <project-dir>` (stdlib only; exit 1 on errors). It checks: IDs unique and complete rows; header counts; every Must requirement traces to existing parts or decisions; every part serves something and appears in the level 2 diagram, every diagram node and interface endpoint exists; levels 1 and 2 present; every contract boundary is handled and every data entity has exactly one owner; resource-math limits are carried; scenarios use existing parts and interfaces and at least one is a failure scenario; cited decisions exist, are not superseded and are links; research links; relative links resolve; earlier documents not newer than the dates this design is based on; technology words outside decisions, the technology table and constraints; the `CLARITY` line; status *agreed* is refused while the gate is open. Fix every ERROR; for each WARN fix it or write one line saying why it stays.
+2. **Semantic:** spawn one fresh reviewer sub-agent (not the writer; give it only the paths of the project's documents and `contracts/`) with the brief in `references/consistency-review.md`. Judge each finding: fix the design, or - when an earlier document is wrong or impossible - update it with a dated revision line and a new decision, then re-run its own checker. Ask the developer with plain-language context before changing what they decided. Without sub-agents do the same pass yourself against that list.
+
+The **clarity gate** for the status *agreed*: every Must requirement is covered by a part; every boundary handled and every entity owned; no fork is still open; each architectural assumption that carries a Must requirement has a named validation (a spike or measurement - it becomes a task at the roadmap stage); the reviewer's findings are resolved or recorded. The developer can end the loop earlier; then the status stays *draft* and the open items sit at the top.
+
+### 8. Write the file
+Write `architecture.md` in the project folder in the developer's language, using `references/architecture-template.md` (read it before writing). If the file exists, read and revise it: keep IDs, add a short `## Changes since previous version`. Set the header's `Based on` line to the actual dates of the earlier documents (the script uses them to detect drift) and record the check outcome in *Consistency check*. Run `link_docs.py` at the end (write mentions as plain `D-<n>`). No index files.
+
+Then a short chat summary: the architecture in two sentences, the 2-3 decisions that matter most, the check results, the riskiest assumption and how it will be validated, changes forced on earlier documents, what is open; offer another question round if gaps remain; name the next step (`mechanics`). Don't paste the document.
+
+## Quality bar
+- Every Must requirement traces to a part, an interface or a decision; no part exists without a reason.
+- Every boundary has a handling part; every entity one owner; every limit a carrier.
+- Every expensive fork has options, a recommendation, evidence where facts mattered, a price check against resource-math, and a `D-n` entry.
+- The scenarios include failures and could have failed; gaps they found were fixed or recorded.
+- Parts, interfaces, C4 diagrams and scenarios agree with each other, and this is checked.
+- No algorithms, schemas, machine-readable internal contracts or libraries; products only for expensive choices.
+- Short beats long: tables over prose, roughly 3,000-4,500 words (repeat the part-to-requirement mapping once, in the parts table; group traceability rows by theme); past about 10 parts the structure is probably mechanics in disguise.

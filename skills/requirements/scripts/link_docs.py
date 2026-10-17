@@ -4,7 +4,7 @@
 Layout:
   docs/zkit/<project>/               a project: 'mvp', a big feature, ... (kebab-case name)
       concept.md
-      requirements.md                (later stages: resource-math.md, high-level-design.md, ...: add to STAGES)
+      requirements.md                (later stages: resource-math.md, contracts.md, data.md, architecture.md, ...: add to STAGES)
       decisions.md                   ONE file: entries '### D-<n>: title', each with an <a id="D-<n>"> anchor
       research/R-<n>-<slug>.md       one file per research question; ids unique inside the project
 
@@ -18,7 +18,7 @@ Usage:
 """
 import os, re, sys, glob, shutil
 
-STAGES = ["concept", "requirements", "resource-math", "contracts", "data", "high-level-design"]   # later stages: add here and to stage_docs below
+STAGES = ["concept", "requirements", "resource-math", "contracts", "data", "architecture"]   # later stages: add here and to stage_docs below
 rd = lambda p: open(p, encoding="utf-8").read()
 def wr(p, s):
     os.makedirs(os.path.dirname(p) or ".", exist_ok=True); open(p, "w", encoding="utf-8").write(s)
@@ -76,7 +76,7 @@ if "--migrate" in sys.argv:
 d = arg
 P = lambda *a: os.path.join(d, *a)
 concept_p, req_p, dec_p = P("concept.md"), P("requirements.md"), P("decisions.md")
-hld_p = P("high-level-design.md")
+hld_p = P("architecture.md") if os.path.exists(P("architecture.md")) else P("high-level-design.md")
 rm_p = P("resource-math.md")
 ct_p = P("contracts.md")
 dt_p = P("data.md")
