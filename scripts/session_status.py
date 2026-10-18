@@ -15,6 +15,7 @@ for d in sorted(glob.glob("docs/zkit/*/")):
     nxt = next(((f, s) for f, s in STEPS if state.get(f) != "agreed"), None)
     name = os.path.basename(d.rstrip("/"))
     if nxt:
-        print(f"zkit: project '{name}' - agreed: {', '.join(k for k, v in state.items() if v == 'agreed') or 'none'}; next: {nxt[1]}. Run /zkit:flow to continue.")
+        done = [k for k, v in state.items() if v == 'agreed']
+        print(f"zkit: project '{name}' - {len(done)}/{len(STEPS)} agreed: {', '.join(done) or 'none'}; next: {nxt[1]}. Run /zkit:flow to continue.")
     else:
         print(f"zkit: project '{name}' - all steps agreed.")

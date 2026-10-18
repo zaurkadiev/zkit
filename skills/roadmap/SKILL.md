@@ -40,6 +40,8 @@ Zkit docs folder: default `docs/zkit/`; `AGENTS.md`/`CLAUDE.md` may name another
 Capacity (hours per week best / expected / worst, deadline), the scope in priority order, the nearest hard question per gate. Show the developer in a few lines and ask what is genuinely open (capacity and deadline are usually the open ones): one question per turn.
 
 ### 3. Settle the forks - one question at a time
+**Progress counter.** Prefix every question with `[roadmap Q n/N]` (e.g. `[roadmap Q3/12]`): n = questions asked so far, N = your current count of the gaps/forks you still plan to ask about, set once the draft exists. When N changes (new conflict, gap closed by research, developer ends the loop), say it in one line (`N 12→15: new conflict`), never silently. Do not pad questions to reach N; the loop still ends on clarity.
+
 Typical forks: what goes into the thin slice, whether to buy time with scope (cut Should, shrink the first release) or with calendar (extend the deadline), pilot size, order of risky spikes, build vs. adopt when a spike disappoints, whom to show the slice. For each: 2-3 genuinely different options, what each costs in hours and risk, compared against the schedule, with your recommendation. Facts you lack go to `research` (state *recommended / optional / not needed, because …*). Ask the developer **one question per turn, 2-4 options, recommended first marked "(Recommended)"**, in plain language with a concrete example of what changes in the plan; decide yourself only forks with an obvious winner and say so. On "you decide" take your recommendation, mark it *assumed*. Record settled forks as `D-<n>` in `decisions.md`.
 
 ### 4. Build phases, gates and items
