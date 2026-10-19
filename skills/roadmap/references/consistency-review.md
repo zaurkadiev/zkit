@@ -1,6 +1,6 @@
 # Consistency review brief (whole chain ↔ roadmap)
 
-Give this to a fresh reviewer sub-agent with the paths of the project's `concept.md`, `requirements.md`, `resource-math.md`, `contracts.md`, `data.md`, `architecture.md`, `mechanics.md`, `resilience.md`, `decisions.md` and `roadmap.md`. The reviewer reads them fully, edits nothing, reports in the developer's language, and returns at most 25 rows `type | where (PH-/G-/TK-/EP- id or section) | what is wrong | suggested fix`, most serious first, then a one-paragraph verdict (consistent / minor issues / serious issues). Categories:
+Give this to a fresh reviewer sub-agent with the paths of the project's `concept.md`, `requirements.md`, `resource-math.md`, `contracts.md`, `data.md`, `architecture.md`, `mechanics.md`, `resilience.md`, `decisions.md`, `roadmap.md` and the `roadmap/epics/` folder. The reviewer reads them fully, edits nothing, reports in the developer's language, and returns at most 25 rows `type | where (PH-/G-/TK-/EP- id or section) | what is wrong | suggested fix`, most serious first, then a one-paragraph verdict (consistent / minor issues / serious issues). Categories:
 
 1. PROOF_WORK_MISSING: a spike, measurement, drill, validation or `→ roadmap` item from an earlier document (including assumptions with a named validation, failing limits and accepted residual risks) that no task or epic plans, or that is scheduled after the work that depends on its answer.
 2. RISK_LAST: the plan builds expensive things before the cheap proofs that could change them; a gate that does not actually stop or change anything; criteria that cannot be measured or do not match the requirements and limits.
@@ -12,5 +12,6 @@ Give this to a fresh reviewer sub-agent with the paths of the project's `concept
 8. CONTRADICTION: the roadmap contradicts a requirement, architecture decision, mechanics model, resilience gate (e.g. a pilot before the drill that must precede strangers) or a non-superseded decision.
 9. STALE: tasks based on superseded decisions or old versions of earlier documents.
 10. CUTS_DISHONEST: cuts that remove a Must requirement, hide cost elsewhere, or are not tied to hours saved.
+11. TASK_BOUNDARY: two tasks (or epics) that overlap or own the same work; a task whose file does not say what to do in enough detail to start, whose boundaries (in / out) are vague, or that cannot be done or checked alone; a split by layers of effort (design / code / test) instead of logical seams; a task file that disagrees with its table row (epic, phase, hours, dependencies, acceptance). Also give the paths of `roadmap/epics/`.
 
 Strict but fair; skip nitpicks; «none» for an empty category. The reviewer's table is evidence, not a verdict: the main agent decides each finding.

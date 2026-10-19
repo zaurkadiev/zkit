@@ -34,13 +34,16 @@ Where the numbers come from (the developer's statement, a requirement, an assump
 | G-0 | PH-0 | cost per goal ≤ $20 (L-1, NFR-1); DR-1 and DR-4 passed; micro-VM resumes in ≤ 15 s | continue / change the design: managed sandbox / stop |
 
 ## 5. Tasks (detailed, up to the nearest gates)
-| ID | Task | Phase | Best | Expected | Worst | Depends | Wait (weeks) | Source | Serves | Acceptance |
-|---|---|---|---|---|---|---|---|---|---|---|
-| TK-1 | Measure cost per goal on 10 real goals | PH-0 | 8 | 12 | 20 | — | 0 | spike P-1, RA-7 | NFR-1, L-1 | cost per goal measured; the expected scenario of resource-math updated |
+| ID | Task | Epic | Phase | Best | Expected | Worst | Depends | Wait (weeks) | Source | Serves | Acceptance |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| TK-1 | Measure cost per goal on 10 real goals | EP-1 | PH-0 | 8 | 12 | 20 | — | 0 | spike P-1, RA-7 | NFR-1, L-1 | cost per goal measured; the expected scenario of resource-math updated |
+
+Every task belongs to one epic (`Epic`) and has its own file `roadmap/epics/EP-n-<slug>/tasks/TK-n-<slug>.md` (see `task-template.md`); the table row stays short, the file holds the full description.
 
 `Source`: where the task comes from (a `→ roadmap` line, `DR-n`, `MC-n`, `D-n`, a failing limit, a requirement). `Serves`: requirement, limit or drill ids. `Acceptance`: how anyone can check it is done.
 
-## 6. Epics (later phases, hour ranges only)
+## 6. Epics
+An epic is a group of tasks (container: its hours are the sum of its tasks, the row's hours are ignored) or, for later phases, a block not yet split into tasks (scheduled by its own range). Every epic has `roadmap/epics/EP-n-<slug>/epic.md`.
 | ID | Epic | Phase | Best | Expected | Worst | Depends | Wait (weeks) | Source | Serves | Acceptance |
 |---|---|---|---|---|---|---|---|---|---|---|
 | EP-1 | Approvals and delegation rules | PH-2 | 40 | 70 | 120 | TK-9 | 0 | FR-17…FR-20, MC-9 | FR-17…FR-20 | detailed after G-1 |

@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Roadmap checker and scheduler for one zkit project. Stdlib only.
 Usage: check_roadmap.py <project-dir> [--update]
-  Parses roadmap.md (phases PH-n, gates G-n, tasks TK-n, epics EP-n, capacity), schedules the work for one developer in
+  Parses roadmap.md (phases PH-n, gates G-n, tasks TK-n, epics EP-n, capacity) and the files roadmap/epics/EP-n-*/epic.md and
+  roadmap/epics/EP-n-*/tasks/TK-n-*.md (one per epic and per task), schedules the work for one developer in
   best / expected / worst scenarios (dependencies, external waits), checks coverage of earlier documents, and with --update
   rewrites the generated block between <!-- schedule:begin --> and <!-- schedule:end -->. Exit 1 on ERROR."""
-import re, sys, os, math
+import re, sys, os, math, glob
 
 d = next((a for a in sys.argv[1:] if not a.startswith("--")), "docs/zkit")
 update = "--update" in sys.argv
@@ -31,8 +32,16 @@ num = lambda s, default=0.0: float(m.group(0)) if (m := re.search(r"\d+(?:[.,]\d
 PH, G = tables(body, r"PH-\d+$"), tables(body, r"G-\d+$")
 TK, EP = tables(body, r"TK-\d+$"), tables(body, r"EP-\d+$")
 CAP = tables(body, r"(best|expected|worst|лучш|ожидаем|худш)")
-items = TK + EP
-ids = [r["_id"] for r in PH + G + items]
+# every task belongs to an epic; an epic that has tasks is a container (its hours are the tasks'), one without tasks is scheduled by its own range
+epic_of = {r["_id"]: (re.search(r"EP-\d+", col(r, r"epic|эпик")) or re.search("", "")).group(0) for r in TK}
+eps = {r["_id"] for r in EP}
+for t_, e_ in epic_of.items():
+    if not e_: err("%s names no epic (column Epic)" % t_)
+    elif e_ not in eps: err("%s names epic %s, which does not exist" % (t_, e_))
+containers = {e_ for e_ in epic_of.values() if e_ in eps}
+kids = {e_: [t_ for t_, x in epic_of.items() if x == e_] for e_ in containers}
+items = TK + [r for r in EP if r["_id"] not in containers]
+ids = [r["_id"] for r in PH + G + TK + EP]
 for i in set(ids):
     if ids.count(i) > 1: err("duplicate id %s" % i)
 if not PH: err("no phases (PH-n)")
@@ -56,9 +65,10 @@ for r in items:
     if not re.search(r"(?:FR|NFR|C|L|RL|DR|MC|D|E|X|I|B|S|G)-\d+|spike|P-\d", col(r, r"serves|source|обслужив|источник|requirement|требован"), re.I): warn("%s traces to no requirement, limit, drill or decision" % i)
 dep = {}
 for r in items:
-    dep[r["_id"]] = re.findall(r"(?:TK|EP)-\d+", col(r, r"depend|завис"))
-    for x in dep[r["_id"]]:
-        if x not in known: err("%s depends on %s, which does not exist" % (r["_id"], x))
+    raw = re.findall(r"(?:TK|EP)-\d+", col(r, r"depend|завис"))
+    for x in raw:
+        if x not in known and x not in containers: err("%s depends on %s, which does not exist" % (r["_id"], x))
+    dep[r["_id"]] = [y for x in raw for y in (kids.get(x) or [x])]   # depending on an epic means depending on all its tasks
     if r["_id"] in dep[r["_id"]]: err("%s depends on itself" % r["_id"])
 state, order = {}, []
 def visit(n, stack):
@@ -121,6 +131,31 @@ elif update:
 elif m.group(1).strip() != block.strip(): err("the generated schedule block is stale: run with --update")
 misses_deadline = "!expected" in verd
 
+# ---------- epic and task files: roadmap/epics/EP-n-<slug>/epic.md and .../tasks/TK-n-<slug>.md
+ROOT = os.path.join(d, "roadmap", "epics")
+NEED = {"epic": [("goal", r"goal|цель"), ("boundaries", r"bound|scope|границ")],
+        "task": [("goal", r"goal|цель"), ("what must be done", r"what must|to do|сделать|что нужно"), ("boundaries (in / out)", r"bound|scope|границ"), ("inputs", r"input|вход"), ("acceptance", r"accept|приёмк|критер")]}
+def read_file(f, kind):
+    t = open(f, encoding="utf-8").read(); rel = os.path.relpath(f, d)
+    heads = [l.lstrip("#").strip().lower() for l in t.splitlines() if l.startswith("#")]
+    for name, pat in NEED[kind]:
+        if not any(re.search(pat, h) for h in heads): err("%s has no '%s' section" % (rel, name))
+    if kind == "task" and len(t.split()) < 80: warn("%s is under 80 words: a task file must say what to do in enough detail to start without asking" % rel)
+idof = lambda f, k: (re.match(k + r"-\d+", os.path.basename(f)) or re.match("", "")).group(0)
+efile = {idof(os.path.dirname(f), "EP"): f for f in glob.glob(os.path.join(ROOT, "EP-*", "epic.md"))}
+tfile = {idof(f, "TK"): f for f in glob.glob(os.path.join(ROOT, "EP-*", "tasks", "TK-*.md"))}
+nofile = []
+for e_ in sorted(eps):
+    if e_ not in efile: err("%s has no file roadmap/epics/%s-<slug>/epic.md" % (e_, e_)); nofile.append(e_)
+    else: read_file(efile[e_], "epic")
+for r in TK:
+    i = r["_id"]
+    if i not in tfile: err("%s has no file roadmap/epics/%s-<slug>/tasks/%s-<slug>.md" % (i, epic_of[i] or "EP-n", i)); nofile.append(i); continue
+    read_file(tfile[i], "task")
+    if epic_of[i] and idof(os.path.dirname(os.path.dirname(tfile[i])), "EP") != epic_of[i]: err("%s lies in the folder of another epic than its table row says (%s)" % (i, epic_of[i]))
+for x in sorted(set(tfile) - {r["_id"] for r in TK}): warn("task file %s has no row in the tasks table" % os.path.relpath(tfile[x], d))
+for x in sorted(set(efile) - eps): warn("epic file %s has no row in the epics table" % os.path.relpath(efile[x], d))
+
 # ---------- gates
 for g in G:
     if not col(g, r"criteria|критер").strip(" —-"): err("%s has no exit criteria" % g["_id"])
@@ -131,7 +166,7 @@ first = PH[0]["_id"] if PH else ""
 if not any(re.search(r"spike|DR-|validat|measure|замер|провер|пилот|pilot", col(r, r"source|serves|источник|task|задач"), re.I) for r in items if col(r, r"phase|фаз").strip() == first): warn("first phase %s has no spike, drill or validation: risks should come first" % first)
 
 # ---------- coverage of earlier documents
-text_items = " ".join(" ".join(r.values()) for r in items)
+text_items = " ".join(" ".join(r.values()) for r in TK + EP)
 reqs = {}
 if req is not None:
     hdr = None
@@ -173,8 +208,8 @@ for nm, text in docs:
 agreed = bool(re.search(r"(?:Status|Статус):\*\*\s*(agreed|согласовано)", head, re.I))
 cuts = bool(re.search(r"D-\d+", " ".join(l for l in body.splitlines() if re.search(r"(?i)deadline|срок|cut|сокращ|accept|принят", l)))) or bool(re.search(r"(?im)^## .*(cut|сокращ)", body))
 if misses_deadline and not cuts: err("the expected scenario misses the deadline and the document has neither a cuts section nor an accepting decision (D-n)")
-out.append("CLARITY %d Must requirement(s) unserved; %d drill(s) unplanned; expected scenario %s the deadline" % (len(unserved), len(undrilled), "misses" if misses_deadline else "meets or has no"))
-if agreed and (unserved or undrilled or misses_deadline): err("status is 'agreed' but the clarity gate is not passed (see CLARITY line)")
+out.append("CLARITY %d Must requirement(s) unserved; %d drill(s) unplanned; %d epic/task file(s) missing; expected scenario %s the deadline" % (len(unserved), len(undrilled), len(nofile), "misses" if misses_deadline else "meets or has no"))
+if agreed and (unserved or undrilled or nofile or misses_deadline): err("status is 'agreed' but the clarity gate is not passed (see CLARITY line)")
 print("\n".join(out) if out else "OK: no findings")
 print("%d phases, %d gates, %d tasks, %d epics; hours %g / %g / %g; weeks %.1f / %.1f / %.1f" % (len(PH), len(G), len(TK), len(EP), hsum[0], hsum[1], hsum[2], tot["best"], tot["expected"], tot["worst"]))
 sys.exit(1 if any(o.startswith("ERROR") for o in out) else 0)

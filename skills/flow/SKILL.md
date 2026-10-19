@@ -21,7 +21,7 @@ The router for zkit (`/zkit:flow`). It owns no design logic: each step's skill d
 | architecture | `architecture.md` |
 | mechanics | `mechanics.md` + `mechanics/model_*.py` |
 | resilience | `resilience.md` + `resilience_model.py` |
-| roadmap | `roadmap.md` |
+| roadmap | `roadmap.md` + `roadmap/epics/` (an `epic.md` per epic, a file per task) |
 
 ## Workflow
 1. **Find the project.** List `docs/zkit/*/`. One project → use it. Several → ask which (one question). None, or a new idea → start `concepting` with the idea; project name = short kebab-case, ask only if it is not obvious.
