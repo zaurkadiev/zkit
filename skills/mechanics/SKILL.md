@@ -29,7 +29,7 @@ Rules of thumb:
 ## Workflow
 
 ### 1. Locate and read the inputs
-Zkit docs folder: default `docs/zkit/`; `AGENTS.md`/`CLAUDE.md` may name another; a path in the request wins. Work in `docs/zkit/<project>/` (ask if unclear). Read `requirements.md`, `concept.md`, `resource-math.md` with `resource_model.py`, `contracts.md` with `contracts/`, `data.md`, `architecture.md`, `decisions.md` and relevant research. Collect every `→ mechanics` line: that is the agenda. If code exists for this system, read the relevant parts: existing behaviour is a constraint.
+Zkit docs folder: default `docs/zkit/`; `AGENTS.md`/`CLAUDE.md` may name another; a path in the request wins. Work in `docs/zkit/<project>/` (ask if unclear). Read `requirements.md`, `concept.md`, `resource-math.md` with `resource-math/model.py`, `contracts.md` with `contracts/`, `data.md`, `architecture.md`, `decisions.md` and relevant research. Collect every `→ mechanics` line: that is the agenda. If code exists for this system, read the relevant parts: existing behaviour is a constraint.
 - No requirements or no architecture: say so and offer the missing step first (`/zkit:requirements`, `/zkit:architecture`), or a short intake marked "no requirements/architecture behind it". Don't invent them.
 - Inputs still draft with an open clarity gate: say what is open; if the developer continues, mark the mechanics draft.
 - `mechanics.md` already exists: run the check from step 6 first; if it reports newer inputs or failing models, list what changed before revising.

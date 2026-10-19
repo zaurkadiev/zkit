@@ -2,9 +2,9 @@
 """Resilience checker and model runner for one zkit project. Stdlib only.
 Usage: check_resilience.py <project-dir> [--update]
   resilience.md (fault and threat register F-n/T-n, observability O-n, drills DR-n, numeric limits RL-n) +
-  resilience_model.py (availability, RPO, RTO; best / expected / worst) vs architecture, data, contracts, requirements.
+  resilience/model.py (availability, RPO, RTO; best / expected / worst) vs architecture, data, contracts, requirements.
   --update rewrites the generated block between <!-- model:begin --> and <!-- model:end -->. Exit 1 on ERROR.
-Model contract (resilience_model.py): ASSUMPTIONS = {"RA-1": {"label","unit","best","expected","worst"}},
+Model contract (resilience/model.py): ASSUMPTIONS = {"RA-1": {"label","unit","best","expected","worst"}},
   compute(a) -> {result: number}, LIMITS = [{"id":"RL-1","metric":result,"op":"<=|>=","limit":number,"req":"NFR-11","label":..}], optional UNITS."""
 import re, sys, os, importlib.util
 
@@ -12,7 +12,8 @@ d = next((a for a in sys.argv[1:] if not a.startswith("--")), "docs/zkit")
 update = "--update" in sys.argv
 rdp = lambda n: open(os.path.join(d, n), encoding="utf-8").read() if os.path.exists(os.path.join(d, n)) else None
 doc, req, arch, dt, ct = rdp("resilience.md"), rdp("requirements.md"), rdp("architecture.md"), rdp("data.md"), rdp("contracts.md")
-mp = os.path.join(d, "resilience_model.py")
+mp = os.path.join(d, "resilience/model.py")
+if not os.path.exists(mp) and os.path.exists(os.path.join(d, "resilience_model.py")): mp = os.path.join(d, "resilience_model.py")   # legacy layout, before the model moved into its step folder
 if doc is None: sys.exit("ERROR: no resilience.md in %s (pass the project folder)" % d)
 out = []
 err = lambda m: out.append("ERROR  " + m)
@@ -23,7 +24,7 @@ A, LIM, UNITS, bad = {}, [], {}, {s: [] for s in ("best", "expected", "worst")}
 SC = ("best", "expected", "worst")
 fmt = lambda v: "%.4g" % v
 ok = lambda l, v: v <= l["limit"] if l["op"] == "<=" else v >= l["limit"]
-if not os.path.exists(mp): err("no resilience_model.py in %s" % d)
+if not os.path.exists(mp): err("no resilience/model.py in %s" % d)
 else:
     sp = importlib.util.spec_from_file_location("resilience_model", mp); M = importlib.util.module_from_spec(sp); sp.loader.exec_module(M)
     A, LIM, UNITS = M.ASSUMPTIONS, M.LIMITS, getattr(M, "UNITS", {})

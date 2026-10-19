@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Resource-math checker and model runner for one zkit project. Stdlib only.
 Usage: check_resource_math.py <project-dir> [--update]
-  runs <project-dir>/resource_model.py (best / expected / worst scenarios + sensitivity), compares the generated
+  runs <project-dir>/resource-math/model.py (best / expected / worst scenarios + sensitivity), compares the generated
   block between <!-- model:begin --> and <!-- model:end --> in resource-math.md with the fresh output
   (--update rewrites the block), and checks the document against requirements.md and the model. Exit 1 on ERROR.
-Model contract (resource_model.py): ASSUMPTIONS = {"A-1": {"label","unit","best","expected","worst"}},
+Model contract (resource-math/model.py): ASSUMPTIONS = {"A-1": {"label","unit","best","expected","worst"}},
   compute(a: {"A-1": value}) -> {result_name: number}, LIMITS = [{"id":"L-1","metric":result_name,"op":"<=",
   "limit":number,"req":"NFR-3","label":"..."}], optional UNITS = {result_name: unit}."""
 import re, sys, os, importlib.util
@@ -13,9 +13,10 @@ d = next((a for a in sys.argv[1:] if not a.startswith("--")), "docs/zkit")
 update = "--update" in sys.argv
 rdp = lambda n: open(os.path.join(d, n), encoding="utf-8").read() if os.path.exists(os.path.join(d, n)) else None
 doc, req = rdp("resource-math.md"), rdp("requirements.md")
-mp = os.path.join(d, "resource_model.py")
+mp = os.path.join(d, "resource-math/model.py")
+if not os.path.exists(mp) and os.path.exists(os.path.join(d, "resource_model.py")): mp = os.path.join(d, "resource_model.py")   # legacy layout, before the model moved into its step folder
 if doc is None: sys.exit("ERROR: no resource-math.md in %s (pass the project folder)" % d)
-if not os.path.exists(mp): sys.exit("ERROR: no resource_model.py in %s" % d)
+if not os.path.exists(mp): sys.exit("ERROR: no resource-math/model.py in %s" % d)
 out = []
 err = lambda m: out.append("ERROR  " + m)
 warn = lambda m: out.append("WARN   " + m)

@@ -4,12 +4,12 @@
   {
    "id": 0,
    "prompt": "Требования Open Agent Bot согласованы (проект docs/zkit/mvp). Сделай resource-math. Разработчика на связи нет: по каждому открытому вопросу бери свою рекомендацию и помечай допущением.",
-   "expected_output": "resource-math.md + resource_model.py in docs/zkit/mvp; binding resources identified (tokens/model price, environments per server, storage, human time), assumptions with best/expected/worst and sources from research R-1..R-7, limits tested against the $20/organization target and the 100-150 EUR/month budget, honest verdict (including failing worst case), sensitivity, consequences for the design as ceilings, check_resource_math.py passes, no architecture decisions; includes the builder's own time against the available hours (К-11); at most ~20 assumptions",
+   "expected_output": "resource-math.md + resource-math/model.py in docs/zkit/mvp; binding resources identified (tokens/model price, environments per server, storage, human time), assumptions with best/expected/worst and sources from research R-1..R-7, limits tested against the $20/organization target and the 100-150 EUR/month budget, honest verdict (including failing worst case), sensitivity, consequences for the design as ceilings, check_resource_math.py passes, no architecture decisions; includes the builder's own time against the available hours (К-11); at most ~20 assumptions",
    "files": [
     "fixtures/oab-mvp"
    ],
    "assertions": [
-    "resource-math.md и resource_model.py созданы в docs/zkit/mvp",
+    "resource-math.md и resource-math/model.py созданы в docs/zkit/mvp",
     "check_resource_math.py завершается без ERROR",
     "у каждого допущения диапазон best/expected/worst, уровень достоверности и источник",
     "есть лимиты на цель $20 на организацию и бюджет 100–150 €/мес",

@@ -92,7 +92,7 @@ Write a single Markdown file, in the developer's language. It lives in a **proje
 docs/zkit/
   <project>/                  a project: "mvp", or a big feature (kebab-case name); everything about it lives here
     concept.md
-    requirements.md           (later stages add resource-math.md, ux.md, contracts.md, data.md, architecture.md, ... in the same folder)
+    requirements.md           (later stages add resource-math.md, ux.md, contracts.md, data.md, architecture.md, ... in the same folder, and the step folders of the layout in the `flow` skill)
     decisions.md              ONE file: every decision as an entry `### D-<n>: title`, numbered within the project
     research/R-<n>-<slug>.md  one file per research question, numbered within the project
 ```

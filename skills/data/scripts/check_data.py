@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Mechanical check of data.md (logical data model) against requirements, resource-math and contracts of one zkit project.
-Usage: check_data.py <project-dir>   (exit 1 on ERROR). Stdlib only (resource_model.py is imported when present)."""
+Usage: check_data.py <project-dir>   (exit 1 on ERROR). Stdlib only (resource-math/model.py is imported when present)."""
 import re, sys, os, importlib.util
 
 d = next((a for a in sys.argv[1:] if not a.startswith("--")), "docs/zkit")
@@ -40,10 +40,11 @@ if req is not None:
             reqs[c[0]] = (c[i] if i is not None and i < len(c) else "", l)
 else: warn("no requirements.md: serving requirements cannot be checked")
 assum = set(re.findall(r"\bA-\d+\b", rm)) if rm else set()
-if os.path.exists(os.path.join(d, "resource_model.py")):
+rmp = next((q for q in (os.path.join(d, "resource-math/model.py"), os.path.join(d, "resource_model.py")) if os.path.exists(q)), None)   # second: legacy layout
+if rmp:
     try:
-        sp = importlib.util.spec_from_file_location("resource_model", os.path.join(d, "resource_model.py")); M = importlib.util.module_from_spec(sp); sp.loader.exec_module(M); assum |= set(M.ASSUMPTIONS)
-    except Exception as e: warn("resource_model.py could not be loaded: %s" % str(e)[:60])
+        sp = importlib.util.spec_from_file_location("resource_model", rmp); M = importlib.util.module_from_spec(sp); sp.loader.exec_module(M); assum |= set(M.ASSUMPTIONS)
+    except Exception as e: warn("resource-math/model.py could not be loaded: %s" % str(e)[:60])
 limits = set(re.findall(r"\bL-\d+\b", rm)) if rm else set()
 
 E = tables(sec("сущност", "entit", "catalog"), r"E-\d+$")

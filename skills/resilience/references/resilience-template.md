@@ -46,7 +46,7 @@ State what a failed drill would look like.
 |---|---|---|---|---|---|---|---|---|
 | RA-1 | node failures per year | 1/year | 0.5 | 1 | 2 | assumed | hoster statistics [R-n](research/R-n-slug.md) | measured in the pilot |
 
-`Evidence`: known / measured / assumed. Values here equal `resilience_model.py` (the checker compares ids).
+`Evidence`: known / measured / assumed. Values here equal `resilience/model.py` (the checker compares ids).
 
 ## 8. Model
 Formulas in words (one line each), then the generated block - never type numbers into it, run `check_resilience.py <project-dir> --update`:

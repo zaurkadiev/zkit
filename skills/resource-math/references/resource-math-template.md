@@ -5,10 +5,10 @@ Aim for roughly 1,500-3,000 words around the model, at most ~20 assumptions. Tab
 ```markdown
 # <Name> — Resource math
 
-> **Links:** [concept](concept.md) · [requirements](requirements.md) · [decisions](decisions.md) · [model](resource_model.py)
+> **Links:** [concept](concept.md) · [requirements](requirements.md) · [decisions](decisions.md) · [model](resource-math/model.py)
 > **Status:** draft / agreed (agreed only when the clarity gate passes, SKILL.md step 6) · **Date:** <date> · **Based on:** [requirements.md](requirements.md) (<requirements' own date>)
 > **Verdict:** fits / fits with changes / does not fit
-> **Counts:** <n> A · <n> L   (the checker compares these with resource_model.py)
+> **Counts:** <n> A · <n> L   (the checker compares these with resource-math/model.py)
 
 ## 1. Summary
 The verdict in ≤5 sentences: what was tested, does it fit in the expected and the worst scenario, the 2-3 assumptions that decide it, what the design must respect.
@@ -26,10 +26,10 @@ The units that arrive (users, organizations, agents, tasks, messages, frames, sa
 |---|---|---|---|---|---|---|---|---|
 | A-1 | … | … | … | … | … | known / measured / assumed | requirement id, [R-n](research/R-n-slug.md), "developer" | cheapest check for an *assumed* one (measurement, spike, pilot) |
 
-`best` is the value most favourable for the limits, `worst` the least favourable. Values here must equal resource_model.py (the checker compares ids and counts).
+`best` is the value most favourable for the limits, `worst` the least favourable. Values here must equal resource-math/model.py (the checker compares ids and counts).
 
 ## 5. Model
-Formulas in words, one line each (the code is in `resource_model.py`; comment names the resource). Then the generated block - never type numbers into it, run `check_resource_math.py <project-dir> --update`:
+Formulas in words, one line each (the code is in `resource-math/model.py`; comment names the resource). Then the generated block - never type numbers into it, run `check_resource_math.py <project-dir> --update`:
 
 <!-- model:begin -->
 <!-- model:end -->

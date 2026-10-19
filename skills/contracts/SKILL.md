@@ -28,7 +28,7 @@ Rules of thumb:
 ## Workflow
 
 ### 1. Locate and read the inputs
-Zkit docs folder: default `docs/zkit/`; `AGENTS.md`/`CLAUDE.md` may name another; a path in the request wins. Work in `docs/zkit/<project>/` (ask if unclear). Read `requirements.md`, `concept.md`, `decisions.md`, and `resource-math.md` with `resource_model.py` if they exist, and `ux.md` if the ux step was done; read relevant research. Collect every `→ contracts` line (those of `ux.md` are the operations its surfaces need): that is the agenda. If code or existing API files exist, read them: an existing contract is a constraint.
+Zkit docs folder: default `docs/zkit/`; `AGENTS.md`/`CLAUDE.md` may name another; a path in the request wins. Work in `docs/zkit/<project>/` (ask if unclear). Read `requirements.md`, `concept.md`, `decisions.md`, and `resource-math.md` with `resource-math/model.py` if they exist, and `ux.md` if the ux step was done; read relevant research. Collect every `→ contracts` line (those of `ux.md` are the operations its surfaces need): that is the agenda. If code or existing API files exist, read them: an existing contract is a constraint.
 - No requirements: say so and offer `/zkit:requirements` first, or a short intake marked "no requirements behind it". Don't invent them.
 - No resource-math: proceed, but say limits are not tied to numbers and list quotas as open (recommend running `resource-math` first for any system with real load or a budget).
 - Requirements or resource-math still draft with an open clarity gate: say what is open; if the developer continues, mark the contracts draft.
