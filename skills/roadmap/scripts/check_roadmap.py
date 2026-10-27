@@ -7,7 +7,8 @@ Usage: check_roadmap.py <project-dir> [--update]
   rewrites the generated block (table, critical path, lanes, Mermaid graph) between <!-- schedule:begin --> and <!-- schedule:end -->. Exit 1 on ERROR."""
 import re, sys, os, math, glob
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "flow", "scripts"))
-from ids import rx
+try: from ids import rx
+except ImportError: sys.exit("ERROR: zkit id registry flow/scripts/ids.py not found: run this script from the zkit plugin, not from a copied skill")
 
 d = next((a for a in sys.argv[1:] if not a.startswith("--")), "docs/zkit")
 update = "--update" in sys.argv
@@ -172,6 +173,7 @@ m = re.search(re.escape(B0) + r"(.*?)" + re.escape(B1), doc, re.S)
 if not m: err("no %s ... %s block in roadmap.md" % (B0, B1))
 elif update:
     doc = doc[:m.start(1)] + "\n" + block + "\n" + doc[m.end(1):]; open(os.path.join(d, "roadmap.md"), "w", encoding="utf-8").write(doc); print("block updated")
+elif "(one developer;" in m.group(1): warn("the schedule block has the format before parallel workers (zkit 0.2.7): run with --update; expect slightly shorter weeks, external waits now overlap other work")
 elif m.group(1).strip() != block.strip(): err("the generated schedule block is stale: run with --update")
 misses_deadline = "!expected" in verd
 

@@ -70,6 +70,14 @@ class ScheduleTest(unittest.TestCase):
     def test_external_wait_delays_the_dependent_task(self):
         self.assertEqual(weeks(1, wait=1, depends=True)[0], 3.0 + 1.0)   # TK-2 waits 1 week after TK-1; the gate keeps TK-3 from filling it
 
+    def test_old_format_block_is_a_warning(self):
+        text = ROADMAP.format(w=1, wait=0).replace("<!-- schedule:begin -->", "<!-- schedule:begin -->\n**Schedule** (one developer; weeks from the start)")
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "roadmap.md").write_text(text, encoding="utf-8")
+            out = subprocess.run([sys.executable, str(CHECK), d], capture_output=True, text=True).stdout
+        self.assertIn("format before parallel workers", out)
+        self.assertNotIn("schedule block is stale", out)
+
 
 if __name__ == "__main__":
     unittest.main()

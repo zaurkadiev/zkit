@@ -8,7 +8,8 @@ Model contract (resilience/model.py): ASSUMPTIONS = {"RA-1": {"label","unit","be
   compute(a) -> {result: number}, LIMITS = [{"id":"RL-1","metric":result,"op":"<=|>=","limit":number,"req":"NFR-11","label":..}], optional UNITS."""
 import re, sys, os, importlib.util
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "flow", "scripts"))
-from ids import rx
+try: from ids import rx
+except ImportError: sys.exit("ERROR: zkit id registry flow/scripts/ids.py not found: run this script from the zkit plugin, not from a copied skill")
 
 d = next((a for a in sys.argv[1:] if not a.startswith("--")), "docs/zkit")
 update = "--update" in sys.argv

@@ -5,7 +5,8 @@ Documents of the project: architecture.md (older name: high-level-design.md), re
 contracts.md, data.md, research/R-<n>-<slug>.md."""
 import re, sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "flow", "scripts"))
-from ids import rx
+try: from ids import rx
+except ImportError: sys.exit("ERROR: zkit id registry flow/scripts/ids.py not found: run this script from the zkit plugin, not from a copied skill")
 
 d = sys.argv[1] if len(sys.argv) > 1 else "docs/zkit"
 def rdp(n): p = os.path.join(d, n); return open(p, encoding="utf-8").read() if os.path.exists(p) else None
