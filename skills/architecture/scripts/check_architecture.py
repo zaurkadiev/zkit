@@ -187,7 +187,7 @@ elif re.search(r"\bD-\d+\b", hld): warn("cites decisions, but there is no decisi
 
 # ---------- research reports and relative links
 rdir = os.path.join(d, "research")
-files = sorted(os.listdir(rdir)) if os.path.isdir(rdir) else []
+files = sorted(f for f in os.listdir(rdir) if re.fullmatch(r"R-\d+-.+\.md", f) and os.path.isfile(os.path.join(rdir, f))) if os.path.isdir(rdir) else []
 for rn in sorted(set(re.findall(r"\[(R-\d+)\]", hld))):
     if not any(f.startswith(rn + "-") for f in files): err("cites %s, no such report in research/" % rn)
     elif re.search(r"\[%s\](?!\()" % rn, hld): err("%s is cited without a link to research/%s-*.md" % (rn, rn))
