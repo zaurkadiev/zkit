@@ -1,4 +1,6 @@
 .DS_Store
+.agents/agent-memory
+.vscode
 skills/concepting-workspace/
 skills/requirements-workspace/
 skills/high-level-design-workspace/
