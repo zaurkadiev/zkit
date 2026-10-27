@@ -13,13 +13,13 @@ Aim for roughly 2,500-4,500 words; tasks and epics are tables. Sections in this 
 The plan in ≤5 sentences: how many phases and gates, what phase 0 must prove, the thin slice, the calendar verdict in the three scenarios, the cuts that make it fit, the first thing to do.
 
 ## 2. Capacity and deadline
-| Scenario | Hours per week | Deadline (weeks) |
-|---|---|---|
-| best | 14 | 40 |
-| expected | 10 | 40 |
-| worst | 6 | 40 |
+| Scenario | Hours per week | Deadline (weeks) | Workers |
+|---|---|---|---|
+| best | 14 | 40 | 1 |
+| expected | 10 | 40 | 1 |
+| worst | 6 | 40 | 1 |
 
-Where the numbers come from (the developer's statement, a requirement, an assumption). A deadline may refer to the end of one phase - write it as `52 @PH-3` - otherwise it applies to the whole plan.
+Where the numbers come from (the developer's statement, a requirement, an assumption). A deadline may refer to the end of one phase - write it as `52 @PH-3` - otherwise it applies to the whole plan. `Hours per week` is per worker; `Workers` is how many developers or agents take tasks in parallel (1 if omitted).
 
 ## 3. Phases
 | ID | Phase | Goal | Detail |

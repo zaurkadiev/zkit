@@ -2,6 +2,8 @@
 """Mechanical check of ux.md (human-facing surfaces and journeys) against requirements and resource-math of one zkit project.
 Usage: check_ux.py <project-dir>   (exit 1 on ERROR). Stdlib only."""
 import re, sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "flow", "scripts"))
+from ids import rx
 
 d = next((a for a in sys.argv[1:] if not a.startswith("--")), "docs/zkit")
 rdp = lambda n: open(os.path.join(d, n), encoding="utf-8").read() if os.path.exists(os.path.join(d, n)) else None
@@ -40,11 +42,11 @@ if req is not None:
             i = next((n for n, h in enumerate(hdr) if re.search(r"приоритет|priority", h)), None)
             reqs[c[0]] = (c[i] if i is not None and i < len(c) else "", l)
 else: warn("no requirements.md: serving requirements cannot be checked")
-limits = set(re.findall(r"\bL-\d+\b", rm)) if rm else set()
+limits = set(re.findall(r"\b" + rx("L") + r"\b", rm)) if rm else set()
 
-U = tables(sec("поверхност", "surface"), r"U-\d+$")
-J = tables(sec("сценари", "journey"), r"J-\d+$")
-ST = tables(sec("состояни", "states"), r"U-\d+$")
+U = tables(sec("поверхност", "surface"), rx("U") + r"$")
+J = tables(sec("сценари", "journey"), rx("J") + r"$")
+ST = tables(sec("состояни", "states"), rx("U") + r"$")
 if not U: err("no surface rows (U-n)")
 if not J: err("no journey rows (J-n)")
 uids, used, served = set(), set(), set()
@@ -57,20 +59,20 @@ for r in U:
     if not re.search(KINDS, col(r, r"kind|вид|тип"), re.I): err("%s: kind must be screen / cli / console / chat / notification / config / voice / controls" % u)
     if empty(col(r, r"actor|актор")): err("%s has no actor" % u)
     sv = col(r, r"serves|обслужив|требован")
-    if not re.search(r"(?:FR|NFR|C)-\d+", sv): err("%s serves no requirement" % u)
-    for s in re.findall(r"(?:FR|NFR|C)-\d+", sv):
+    if not re.search(rx("FR", "NFR", "C"), sv): err("%s serves no requirement" % u)
+    for s in re.findall(rx("FR", "NFR", "C"), sv):
         served.add(s)
         if reqs and s not in reqs: err("%s serves %s, which is not in requirements" % (u, s))
     b = col(r, r"budget|бюджет")
-    if re.search(INTERACTIVE, col(r, r"kind|вид|тип"), re.I) and not (re.search(r"\d", b) or re.search(r"L-\d+", b)): warn("%s: interactive surface without a feedback budget (a figure or a resource-math L-n)" % u)
-    for l in re.findall(r"L-\d+", b):
+    if re.search(INTERACTIVE, col(r, r"kind|вид|тип"), re.I) and not (re.search(r"\d", b) or re.search(rx("L"), b)): warn("%s: interactive surface without a feedback budget (a figure or a resource-math L-n)" % u)
+    for l in re.findall(rx("L"), b):
         if limits and l not in limits: err("%s cites %s, not in resource-math" % (u, l))
 jids = set()
 for r in J:
     j = r["_id"]
     if j in jids: err("duplicate journey %s" % j)
     jids.add(j)
-    refs = re.findall(r"U-\d+", col(r, r"surface|поверхност"))
+    refs = re.findall(rx("U"), col(r, r"surface|поверхност"))
     if not refs: err("%s uses no surface" % j)
     for u in refs:
         used.add(u)
@@ -78,8 +80,8 @@ for r in J:
     for k, pat in (("actor", r"actor|актор"), ("happy path", r"happy|основн|путь"), ("failure and empty cases", r"fail|empty|отказ|пуст")):
         if empty(col(r, pat)): err("%s has no %s" % (j, k))
     sv = col(r, r"serves|обслужив|требован")
-    if not re.search(r"(?:FR|NFR|C)-\d+", sv): err("%s serves no requirement" % j)
-    for s in re.findall(r"(?:FR|NFR|C)-\d+", sv):
+    if not re.search(rx("FR", "NFR", "C"), sv): err("%s serves no requirement" % j)
+    for s in re.findall(rx("FR", "NFR", "C"), sv):
         served.add(s)
         if reqs and s not in reqs: err("%s serves %s, which is not in requirements" % (j, s))
 for u in sorted(uids - used): err("surface %s is in no journey" % u)
@@ -95,7 +97,7 @@ kw = r"(?i)пользоват|владел|оператор|экран|инте�
 miss = [k for k, (p, l) in reqs.items() if p == "Must" and re.search(kw, l) and k not in served and k not in doc]
 if miss: warn("Must requirements that touch people but are not served by any surface or journey: " + ", ".join(miss))
 # design leaks
-if re.search(r"(?i)#[0-9a-f]{6}\b|\brgb\(|\bfont-(?:family|size|weight)|\bB-\d+\b|openapi|\bendpoint\b", doc): warn("colours, fonts, endpoints or architecture parts (B-n) found; they belong to visual design, contracts or architecture")
+if re.search(r"(?i)#[0-9a-f]{6}\b|\brgb\(|\bfont-(?:family|size|weight)|\b" + rx("B") + r"\b|openapi|\bendpoint\b", doc): warn("colours, fonts, endpoints or architecture parts (B-n) found; they belong to visual design, contracts or architecture")
 # header, drift, status, clarity
 head = doc.split("\n## ")[0]
 cm = re.search(r"(\d+)\s*U\b.*?(\d+)\s*J\b", head)
@@ -106,7 +108,7 @@ for nm, text in (("requirements", req), ("resource-math", rm)):
     if not bd: warn("header has no 'Based on' date for %s" % nm)
     elif rdte and rdte.group(1) > bd.group(1): err("%s (%s) is newer than the date the ux document is based on (%s)" % (nm, rdte.group(1), bd.group(1)))
 agreed = bool(re.search(r"(?:Status|Статус):\*\*\s*(agreed|согласовано)", head, re.I))
-nobudget = len([r for r in U if re.search(INTERACTIVE, col(r, r"kind|вид|тип"), re.I) and not (re.search(r"\d", col(r, r"budget|бюджет")) or re.search(r"L-\d+", col(r, r"budget|бюджет")))])
+nobudget = len([r for r in U if re.search(INTERACTIVE, col(r, r"kind|вид|тип"), re.I) and not (re.search(r"\d", col(r, r"budget|бюджет")) or re.search(rx("L"), col(r, r"budget|бюджет")))])
 open_forks = len([l for l in doc.splitlines() if l.startswith("|") and re.search(r"(?i)\btbd\b|не решено", l)])
 out.append("CLARITY %d interactive surface(s) without a budget; %d open fork(s)" % (nobudget, open_forks))
 if agreed and (nobudget or open_forks): err("status is 'agreed' but the clarity gate is not passed (see CLARITY line)")

@@ -4,6 +4,8 @@ Usage: check_architecture.py <project-dir>   (e.g. docs/zkit/mvp; exit 1 if any 
 Documents of the project: architecture.md (older name: high-level-design.md), requirements.md, concept.md, decisions.md, resource-math.md,
 contracts.md, data.md, research/R-<n>-<slug>.md."""
 import re, sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "flow", "scripts"))
+from ids import rx
 
 d = sys.argv[1] if len(sys.argv) > 1 else "docs/zkit"
 def rdp(n): p = os.path.join(d, n); return open(p, encoding="utf-8").read() if os.path.exists(p) else None
@@ -27,8 +29,8 @@ def sec(*names):
     return ""
 
 def expand(text):
-    ids = set(re.findall(r"\b(?:FR|NFR|C|B|I|S)-\d+\b", text))
-    for a, b in re.findall(r"((?:FR|NFR|B|I|S)-\d+)\s*[…\-–]+\s*(?:(?:FR|NFR|B|I|S)-)?(\d+)", text):
+    ids = set(re.findall(r"\b" + rx("FR", "NFR", "C", "B", "I", "S") + r"\b", text))
+    for a, b in re.findall((r"(" + rx("FR", "NFR", "B", "I", "S") + r")\s*[…\-–]+\s*(?:" + rx("FR", "NFR", "B", "I", "S", num=r"") + r")?(\d+)"), text):
         k, lo = a.split("-")
         if int(b) >= int(lo): ids |= set("%s-%d" % (k, i) for i in range(int(lo), int(b) + 1))
     return ids
@@ -62,9 +64,9 @@ else:
     warn("no requirements.md: traceability cannot be checked against requirements")
 
 # ---------- parts, interfaces, scenarios
-B = {r[1][0]: r for r in tables(sec("части", "parts", "building"), r"B-\d+$")}
-I = {r[1][0]: r for r in tables(sec("интерфейс", "interface"), r"I-\d+$")}
-Sc = {r[1][0]: r for r in tables(sec("сценари", "scenario"), r"S-\d+$")}
+B = {r[1][0]: r for r in tables(sec("части", "parts", "building"), rx("B") + r"$")}
+I = {r[1][0]: r for r in tables(sec("интерфейс", "interface"), rx("I") + r"$")}
+Sc = {r[1][0]: r for r in tables(sec("сценари", "scenario"), rx("S") + r"$")}
 for name, kind, rr in (("part", "B", B), ("interface", "I", I), ("scenario", "S", Sc)):
     allrows = tables(sec({"B": "части|parts|building", "I": "интерфейс|interface", "S": "сценари|scenario"}[kind]), r"%s-\d+$" % kind)
     seen = set()
@@ -80,7 +82,7 @@ for bid, r in B.items():
     for x in expand(serves):
         if reqs and x.split("-")[0] in ("FR", "NFR", "C") and x not in reqs: err("%s serves %s, which is not in requirements" % (bid, x))
 for iid, r in I.items():
-    ends = re.findall(r"B-\d+", pick(r, r"от|from") or "")
+    ends = re.findall(rx("B"), pick(r, r"от|from") or "")
     if len(ends) < 2: err("%s: 'from → to' must name two parts (B-n)" % iid)
     for e in ends:
         if e not in B: err("%s refers to %s, which does not exist" % (iid, e))
@@ -121,20 +123,20 @@ else:
     if not l2: err("no C4 level 2 (containers) diagram: all parts, infrastructure nodes, links labelled with interfaces")
     if not l3: warn("no C4 level 3 diagram: draw components for the 1-2 parts whose internal structure carries a requirement")
     dg = "\n".join(l2) if l2 else blocks[0][1]
-    nodes = set("B-" + x for x in re.findall(r"\bB(\d+)\b", dg)) | set(re.findall(r"B-\d+", dg))
+    nodes = set("B-" + x for x in re.findall(r"\bB(\d+)\b", dg)) | set(re.findall(rx("B"), dg))
     for b in B:
         if b not in nodes: err("%s is not in the level 2 diagram" % b)
     for b in nodes:
         if b not in B: err("diagram node %s has no row in the parts table" % b)
-    labels = set(re.findall(r"I-\d+", dg))
+    labels = set(re.findall(rx("I"), dg))
     for i in I:
         if i not in labels: warn("%s is not shown as a labelled arrow in the level 2 diagram" % i)
     for i in labels:
         if i not in I: err("diagram arrow %s has no row in the interfaces table" % i)
     for b in l3:
-        for n in set("B-" + x for x in re.findall(r"\bB(\d+)\b", b)) | set(re.findall(r"B-\d+", b)):
+        for n in set("B-" + x for x in re.findall(r"\bB(\d+)\b", b)) | set(re.findall(rx("B"), b)):
             if n not in B: err("level 3 diagram mentions %s, which is not a part" % n)
-    xs_known = set(re.findall(r"\bX-\d+\b", ct)) if ct else set()
+    xs_known = set(re.findall(r"\b" + rx("X") + r"\b", ct)) if ct else set()
     for x in sorted(set(re.findall(r"\bX(?:-|)(\d+)\b", "\n".join(l1 + l2)))):
         if xs_known and "X-" + x not in xs_known: err("diagram mentions X-%s, which is not a boundary in contracts.md" % x)
 
@@ -167,28 +169,28 @@ else:
         if not any(b in t for t in covered.values()): warn("%s is not used in any traceability row" % b)
 
 # ---------- decisions: exist, not superseded, links
-known = set(re.findall(r"^###\s*(D-\d+)", dec or "", re.M))
-anchors = set(re.findall(r'<a id="(D-\d+)"></a>', dec or ""))
+known = set(re.findall(r"^###\s*(" + rx("D") + r")", dec or "", re.M))
+anchors = set(re.findall((r'<a id="(' + rx("D") + r')"></a>'), dec or ""))
 dead = set()
 if dec:
-    for m in re.finditer(r"^###\s*(D-\d+)[^\n]*\n(?:> \*\*Статус:\*\*\s*([^\n]*))?", dec, re.M):
+    for m in re.finditer(r"^###\s*(" + rx("D") + r")[^\n]*\n(?:> \*\*Статус:\*\*\s*([^\n]*))?", dec, re.M):
         if re.search(r"заменено|superseded", (m.group(2) or "") + m.group(0).split("\n")[0], re.I): dead.add(m.group(1))
-    for dn in sorted(set(re.findall(r"\bD-\d+\b", hld))):
+    for dn in sorted(set(re.findall(r"\b" + rx("D") + r"\b", hld))):
         if dn not in known: err("cites %s, not in decisions" % dn)
         elif dn in dead: err("cites %s, which is superseded" % dn)
     text = re.sub(r"```.*?```", "", "\n".join(l for l in hld.split("\n") if not l.startswith(("#", ">"))), flags=re.S)
-    bare = sorted(set(re.findall(r"(?<![\w\[/(#-])(D-\d+)(?![\w\]-])(?!\]\()", text)))
+    bare = sorted(set(re.findall(r"(?<![\w\[/(#-])(" + rx("D") + r")(?![\w\]-])(?!\]\()", text)))
     if bare: err("decisions cited without a link: " + ", ".join(bare) + " (run link_docs.py)")
-    for dn, frag in re.findall(r"\[(D-\d+)\]\([^)#]*#([^)]*)\)", hld):
+    for dn, frag in re.findall(r"\[(" + rx("D") + r")\]\([^)#]*#([^)]*)\)", hld):
         if frag != dn or dn not in anchors: err("link for %s points to a missing anchor #%s" % (dn, frag))
     kd = sec("ключевые решения", "key decisions")
-    if kd and not re.search(r"\bD-\d+\b", kd): warn("key decisions section cites no D-n")
-elif re.search(r"\bD-\d+\b", hld): warn("cites decisions, but there is no decisions.md")
+    if kd and not re.search(r"\b" + rx("D") + r"\b", kd): warn("key decisions section cites no D-n")
+elif re.search(r"\b" + rx("D") + r"\b", hld): warn("cites decisions, but there is no decisions.md")
 
 # ---------- research reports and relative links
 rdir = os.path.join(d, "research")
-files = sorted(f for f in os.listdir(rdir) if re.fullmatch(r"R-\d+-.+\.md", f) and os.path.isfile(os.path.join(rdir, f))) if os.path.isdir(rdir) else []
-for rn in sorted(set(re.findall(r"\[(R-\d+)\]", hld))):
+files = sorted(f for f in os.listdir(rdir) if re.fullmatch(rx("R") + r"-.+\.md", f) and os.path.isfile(os.path.join(rdir, f))) if os.path.isdir(rdir) else []
+for rn in sorted(set(re.findall(r"\[(" + rx("R") + r")\]", hld))):
     if not any(f.startswith(rn + "-") for f in files): err("cites %s, no such report in research/" % rn)
     elif re.search(r"\[%s\](?!\()" % rn, hld): err("%s is cited without a link to research/%s-*.md" % (rn, rn))
 for f in files:
@@ -199,7 +201,7 @@ for tgt in re.findall(r"\]\(([^)#\s]+\.md)(?:#[^)]*)?\)", hld):
 
 # ---------- requirement ids and concept sections cited exist
 if reqs:
-    for x in sorted(set(re.findall(r"\b(?:FR|NFR)-\d+\b", hld))):
+    for x in sorted(set(re.findall(r"\b" + rx("FR", "NFR") + r"\b", hld))):
         if x not in reqs: err("cites %s, which is not in requirements" % x)
 if con is not None:
     secs = set(re.findall(r"^##\s*(\d+)\.", con, re.M))
@@ -229,16 +231,16 @@ if re.search(r"```(?:json|yaml|yml|sql|proto|graphql)\b", hld): warn("schema-lik
 body_struct = "\n".join(v for k, v in S.items() if re.search(r"част|parts|интерфейс|interface|c4|структур|structure|контейнер|container|контекст|context", k))
 unhandled, unowned = [], []
 if ct:
-    for x in sorted(set(r for r in re.findall(r"^\|\s*(X-\d+)\s*\|", ct, re.M))):
+    for x in sorted(set(r for r in re.findall(r"^\|\s*(" + rx("X") + r")\s*\|", ct, re.M))):
         if x not in body_struct: unhandled.append(x); err("boundary %s of contracts.md is not handled by any part or interface (name it in the parts, interfaces or C4 diagrams)" % x)
 if dt:
-    ents = sorted(set(re.findall(r"^\|\s*(E-\d+)\s*\|", dt, re.M)))
+    ents = sorted(set(re.findall(r"^\|\s*(" + rx("E") + r")\s*\|", dt, re.M)))
     owns = {e: [b for b, r in B.items() if re.search(r"\b%s\b" % e, pick(r, r"owns|владеет|состоян|state") or "") or e in expand(pick(r, r"owns|владеет|состоян|state") or "")] for e in ents}
     for e, bs in owns.items():
         if not bs: unowned.append(e); err("entity %s of data.md has no owning part (put it in a part's 'Owns' cell)" % e)
         elif len(bs) > 1: err("entity %s has several owners: %s (exactly one part owns each piece of state)" % (e, ", ".join(bs)))
 if rm:
-    for l in sorted(set(re.findall(r"^\|\s*(L-\d+)\s*\|", rm, re.M))):
+    for l in sorted(set(re.findall(r"^\|\s*(" + rx("L") + r")\s*\|", rm, re.M))):
         if not re.search(r"\b%s\b" % l, hld): warn("limit %s of resource-math is not carried by any part or scenario (cite it where the structure serves it)" % l)
 for nm, text in (("resource-math", rm), ("contracts", ct), ("data", dt)):
     if text is None: continue
@@ -252,7 +254,7 @@ uncovered = sorted(r for r, p in reqs.items() if p == "Must" and (r not in cover
 kd = sec("ключевые решения", "key decisions")
 open_forks = len([l for l in kd.splitlines() if l.startswith("|") and re.search(r"(?i)\btbd\b|\bopen (question|fork)\b|не решено|открыт(ый|ая|ое) (вопрос|развилк)|развилка открыта", l)])
 risks = "\n".join(sec("риски", "risks").split("\n")[1:])   # skip the heading line
-loose = len([l for l in risks.splitlines() if re.search(r"(?i)assumed|допущени", l) and not re.search(r"(?i)validat|валидир|проверк|spike|замер|измер|P-\d|пилот|pilot", l)])
+loose = len([l for l in risks.splitlines() if re.search(r"(?i)assumed|допущени", l) and not re.search(r"(?i)validat|валидир|проверк|spike|замер|измер|" + rx("P", num=r"\d") + r"|пилот|pilot", l)])
 out.append("CLARITY %d Must requirement(s) without a covering part: %s; %d open fork(s); %d architectural assumption(s) without a validation; %d boundary(ies) unhandled; %d entity(ies) unowned" % (len(uncovered), ", ".join(uncovered) or "-", open_forks, loose, len(unhandled), len(unowned)))
 if agreed and (uncovered or open_forks or loose or unhandled or unowned): err("status is 'agreed' but the clarity gate is not passed (see CLARITY line)")
 print("\n".join(out) if out else "OK: no findings")

@@ -50,6 +50,7 @@ What changes, what is cut first when it does not fit. Cards for cli, config and 
 Platforms and input devices, accessibility level and how it is checked, language and units, notification etiquette, destructive-action confirmation rule — one line each, with the requirement behind it.
 
 ## 7. Findings and consequences
+Number the items plainly (`1.`, `2.`); id-like labels (`F-1`, `G-1`) belong to the id registry (`flow/scripts/ids.py`) and fail its check.
 Requirement issues found (a budget below what resource math allows, an accessibility rule the platform cannot meet) with the decision taken or pending. What the surfaces need from the system, tagged `→ contracts: …`; constraints for the parts, tagged `→ architecture: …`; user-facing failure behaviour, tagged `→ resilience: …`.
 
 ## 8. Risks, assumptions and open questions

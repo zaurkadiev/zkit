@@ -2,6 +2,8 @@
 """Mechanical check of data.md (logical data model) against requirements, resource-math and contracts of one zkit project.
 Usage: check_data.py <project-dir>   (exit 1 on ERROR). Stdlib only (resource-math/model.py is imported when present)."""
 import re, sys, os, importlib.util
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "flow", "scripts"))
+from ids import rx
 
 d = next((a for a in sys.argv[1:] if not a.startswith("--")), "docs/zkit")
 rdp = lambda n: open(os.path.join(d, n), encoding="utf-8").read() if os.path.exists(os.path.join(d, n)) else None
@@ -39,17 +41,17 @@ if req is not None:
             i = next((n for n, h in enumerate(hdr) if re.search(r"приоритет|priority", h)), None)
             reqs[c[0]] = (c[i] if i is not None and i < len(c) else "", l)
 else: warn("no requirements.md: serving requirements cannot be checked")
-assum = set(re.findall(r"\bA-\d+\b", rm)) if rm else set()
+assum = set(re.findall(r"\b" + rx("A") + r"\b", rm)) if rm else set()
 rmp = next((q for q in (os.path.join(d, "resource-math/model.py"), os.path.join(d, "resource_model.py")) if os.path.exists(q)), None)   # second: legacy layout
 if rmp:
     try:
         sp = importlib.util.spec_from_file_location("resource_model", rmp); M = importlib.util.module_from_spec(sp); sp.loader.exec_module(M); assum |= set(M.ASSUMPTIONS)
     except Exception as e: warn("resource-math/model.py could not be loaded: %s" % str(e)[:60])
-limits = set(re.findall(r"\bL-\d+\b", rm)) if rm else set()
+limits = set(re.findall(r"\b" + rx("L") + r"\b", rm)) if rm else set()
 
-E = tables(sec("сущност", "entit", "catalog"), r"E-\d+$")
-M_ = tables(sec("память", "memory"), r"M-\d+$")
-LC = tables(sec("жизненн", "lifecycle"), r"E-\d+$")
+E = tables(sec("сущност", "entit", "catalog"), rx("E") + r"$")
+M_ = tables(sec("память", "memory"), rx("M") + r"$")
+LC = tables(sec("жизненн", "lifecycle"), rx("E") + r"$")
 if not E: err("no entity rows (E-n) in the entity catalog")
 seen = set()
 for r in E:
@@ -65,14 +67,14 @@ for r in E:
     if not re.search(STORE, col(r, r"storage|класс|хранил"), re.I): warn("%s: storage class not from the usual set (relational, document, file/blob, log, queue, cache, memory, flash, register)" % e)
     if not re.search(SENS, col(r, r"sensitiv|чувств"), re.I): warn("%s: sensitivity should be public / internal / personal / secret" % e)
     vol = col(r, r"volume|объ[её]м") + " " + col(r, r"growth|рост")
-    refs = re.findall(r"A-\d+", vol)
+    refs = re.findall(rx("A"), vol)
     for a in refs:
         if assum and a not in assum: err("%s cites %s, not in resource-math" % (e, a))
     if not refs and not re.search(r"\d", vol): warn("%s: volume has neither a number nor an assumption A-n from resource-math" % e)
-    for s in re.findall(r"(?:FR|NFR|C)-\d+", col(r, r"serves|обслужив|требован")):
+    for s in re.findall(rx("FR", "NFR", "C"), col(r, r"serves|обслужив|требован")):
         served.add(s)
         if reqs and s not in reqs: err("%s serves %s, which is not in requirements" % (e, s))
-    if not re.search(r"(?:FR|NFR|C)-\d+", col(r, r"serves|обслужив|требован")): err("%s serves no requirement" % e)
+    if not re.search(rx("FR", "NFR", "C"), col(r, r"serves|обслужив|требован")): err("%s serves no requirement" % e)
 lc = {r["_id"]: r for r in LC}
 for r in E:
     e = r["_id"]; sens = col(r, r"sensitiv|чувств").lower()
@@ -95,14 +97,14 @@ for r in M_:
     m = r["_id"]
     for k, pat in (("contents", r"content|содерж"), ("lifetime", r"lifetime|жизн"), ("size", r"size|размер"), ("allocation", r"alloc|размещ|выделен")):
         if not col(r, pat).strip(" —-"): err("%s has no %s" % (m, k))
-    for l in re.findall(r"L-\d+", col(r, r"serves|обслужив|limit|лимит|предел")):
+    for l in re.findall(rx("L"), col(r, r"serves|обслужив|limit|лимит|предел")):
         if limits and l not in limits: err("%s cites %s, not in resource-math" % (m, l))
 if not M_ and not re.search(r"(?i)not applicable|не применим|нет внутрипроцесс", sec("память", "memory")): warn("no memory regions (M-n) and no 'not applicable' line in the memory section")
 # requirements about data covered
 kw = r"(?i)хран|удал|экспорт|журнал|истори|аудит|резервн|копи|persist|stor|delet|retention|export|\blog|audit|backup|history|preset|пресет"
 miss = [k for k, (p, l) in reqs.items() if p == "Must" and re.search(kw, l) and k not in served and k not in doc]
 if miss: warn("Must requirements that mention data but are not served by any entity or mentioned: " + ", ".join(miss))
-if re.search(r"(?i)create table|primary key|varchar|\bindex on\b|\bB-\d+\b", doc): warn("table-level detail or architecture parts (B-n) found; they belong to later steps")
+if re.search(r"(?i)create table|primary key|varchar|\bindex on\b|\b" + rx("B") + r"\b", doc): warn("table-level detail or architecture parts (B-n) found; they belong to later steps")
 # header, drift, status, clarity
 head = doc.split("\n## ")[0]
 cm = re.search(r"(\d+)\s*E\b", head)
@@ -113,7 +115,7 @@ for nm, text in (("requirements", req), ("resource-math", rm), ("contracts", ct)
     if not bd: warn("header has no 'Based on' date for %s" % nm)
     elif rdte and rdte.group(1) > bd.group(1): err("%s (%s) is newer than the date the data model is based on (%s)" % (nm, rdte.group(1), bd.group(1)))
 agreed = bool(re.search(r"(?:Status|Статус):\*\*\s*(agreed|согласовано)", head, re.I))
-noamount = len([r for r in E if not re.findall(r"A-\d+", col(r, r"volume|объ[её]м") + col(r, r"growth|рост")) and not re.search(r"\d", col(r, r"volume|объ[её]м"))])
+noamount = len([r for r in E if not re.findall(rx("A"), col(r, r"volume|объ[её]м") + col(r, r"growth|рост")) and not re.search(r"\d", col(r, r"volume|объ[её]м"))])
 open_forks = len([l for l in doc.splitlines() if l.startswith("|") and re.search(r"(?i)\btbd\b|не решено", l)])
 out.append("CLARITY %d entity(ies) without a volume figure or assumption; %d open fork(s)" % (noamount, open_forks))
 if agreed and (noamount or open_forks): err("status is 'agreed' but the clarity gate is not passed (see CLARITY line)")

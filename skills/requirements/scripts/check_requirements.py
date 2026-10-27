@@ -3,6 +3,8 @@
 Usage: check_requirements.py <project-dir>   (e.g. docs/zkit/mvp; exit 1 if any ERROR). Stdlib only.
 Documents of the project: requirements.md, concept.md, decisions.md, research/R-<n>-<slug>.md."""
 import re, sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "flow", "scripts"))
+from ids import rx
 
 d = sys.argv[1] if len(sys.argv) > 1 else "docs/zkit"
 import glob
@@ -11,7 +13,7 @@ req_p, con_p, dec_p = [os.path.join(d, n) for n in ("requirements.md", "concept.
 req, con, dec = rdp(req_p), rdp(con_p), rdp(dec_p)
 if req is None:
     sys.exit("ERROR: no requirements.md in %s (pass the project folder, e.g. docs/zkit/mvp)" % d)
-dec_anchors = set(re.findall(r'<a id="(D-\d+)"></a>', dec or ""))
+dec_anchors = set(re.findall((r'<a id="(' + rx("D") + r')"></a>'), dec or ""))
 out = []
 def err(m): out.append("ERROR  " + m)
 def warn(m): out.append("WARN   " + m)
@@ -63,27 +65,27 @@ if reqs and cnt["Must"] * 100 / len(reqs) > 40:
 
 # --- decisions cited exist, are not superseded, are links to an existing anchor
 if dec is None:
-    if re.search(r"\bD-\d+\b", req): warn("cites decisions, but no decisions document for this pass")
+    if re.search(r"\b" + rx("D") + r"\b", req): warn("cites decisions, but no decisions document for this pass")
 else:
-    known = set(re.findall(r"^###\s*(D-\d+)", dec, re.M))
+    known = set(re.findall(r"^###\s*(" + rx("D") + r")", dec, re.M))
     dead = set()
-    for m in re.finditer(r"^###\s*(D-\d+)[^\n]*\n(?:> \*\*Статус:\*\*\s*([^\n]*))?", dec, re.M):
+    for m in re.finditer(r"^###\s*(" + rx("D") + r")[^\n]*\n(?:> \*\*Статус:\*\*\s*([^\n]*))?", dec, re.M):
         if re.search(r"заменено|superseded", (m.group(2) or "") + m.group(0).split("\n")[0], re.I): dead.add(m.group(1))
-    for dn in sorted(set(re.findall(r"\bD-\d+\b", req))):
+    for dn in sorted(set(re.findall(r"\b" + rx("D") + r"\b", req))):
         if dn not in known: err("cites %s, not in decisions" % dn)
         elif dn in dead: err("cites %s, which is superseded" % dn)
     if True:
         for dn in sorted(known - dec_anchors): warn("%s has no anchor in the decisions file (run link_docs.py)" % dn)
         text = re.sub(r"```.*?```", "", "\n".join(l for l in req.split("\n") if not l.startswith(("#", ">"))), flags=re.S)
-        bare = sorted(set(re.findall(r"(?<![\w\[/(#-])(D-\d+)(?![\w\]-])(?!\]\()", text)))
+        bare = sorted(set(re.findall(r"(?<![\w\[/(#-])(" + rx("D") + r")(?![\w\]-])(?!\]\()", text)))
         if bare: err("decisions cited without a link: " + ", ".join(bare) + " (run link_docs.py)")
-        for dn, frag in re.findall(r"\[(D-\d+)\]\([^)#]*#([^)]*)\)", req):
+        for dn, frag in re.findall(r"\[(" + rx("D") + r")\]\([^)#]*#([^)]*)\)", req):
             if frag != dn or dn not in dec_anchors: err("link for %s points to a missing anchor #%s" % (dn, frag))
 
 # --- research reports: cited ones exist and are real links; asked-for ones are linked both ways
 rdir = os.path.join(d, "research")
-files = sorted(f for f in os.listdir(rdir) if re.fullmatch(r"R-\d+-.+\.md", f) and os.path.isfile(os.path.join(rdir, f))) if os.path.isdir(rdir) else []
-for rn in sorted(set(re.findall(r"\[(R-\d+)\]", req))):
+files = sorted(f for f in os.listdir(rdir) if re.fullmatch(rx("R") + r"-.+\.md", f) and os.path.isfile(os.path.join(rdir, f))) if os.path.isdir(rdir) else []
+for rn in sorted(set(re.findall(r"\[(" + rx("R") + r")\]", req))):
     if not any(f.startswith(rn + "-") for f in files): err("cites %s, no such report in research/" % rn)
     elif re.search(r"\[%s\](?!\()" % rn, req): err("%s is cited without a link to research/%s-*.md" % (rn, rn))
 for f in files:
@@ -105,8 +107,8 @@ if len(tr) < 2: (err if con is not None else warn)("no traceability section")
 else:
     body = re.split(r"(?m)^## ", tr[1])[0]
     # expand ranges like FR-13…FR-16
-    ids = set(re.findall(r"(?:FR|NFR|C)-\d+", body))
-    for a, b in re.findall(r"((?:FR|NFR)-\d+)\s*[…\-–]+\s*(?:(?:FR|NFR)-)?(\d+)", body):
+    ids = set(re.findall(rx("FR", "NFR", "C"), body))
+    for a, b in re.findall((r"(" + rx("FR", "NFR") + r")\s*[…\-–]+\s*(?:" + rx("FR", "NFR", num=r"") + r")?(\d+)"), body):
         k, lo = a.split("-"); ids |= set("%s-%d" % (k, i) for i in range(int(lo), int(b) + 1))
     for i in rows:
         if i.startswith(("FR", "NFR")) and i not in ids: warn("%s is not mentioned in traceability" % i)
@@ -130,7 +132,7 @@ if tech: warn("solution words outside constraints: " + ", ".join(sorted(set(t.lo
 
 # --- clarity gate: how much still rests on unconfirmed assumptions
 agreed = bool(re.search(r"Status:\*\*\s*(согласовано|agreed)", head, re.I))
-loose = [r["id"] for r in reqs if r["priority"] == "Must" and r["basis"] and re.search(r"assumed", r["basis"], re.I) and not re.search(r"confirmed|подтвержд|P-\d", r["basis"], re.I)]
+loose = [r["id"] for r in reqs if r["priority"] == "Must" and r["basis"] and re.search(r"assumed", r["basis"], re.I) and not re.search(r"confirmed|подтвержд|" + rx("P", num=r"\d"), r["basis"], re.I)]
 openq = len(re.findall(r"\|\s*open\s*\|?\s*$|\bopen\)?\s*\|?\s*$", req.split("Журнал вопросов")[-1].split("\n## ")[0], re.M | re.I)) if re.search(r"Журнал вопросов|Interview log", req) else 0
 out.append("CLARITY %d Must requirement(s) rest on unconfirmed assumptions: %s; %d open question(s) in the log" % (len(loose), ", ".join(loose) or "-", openq))
 if agreed and (loose or openq): err("status is 'agreed' but clarity gate is not passed (see CLARITY line)")

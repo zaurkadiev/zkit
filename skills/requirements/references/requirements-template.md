@@ -13,7 +13,7 @@ Keep the document to roughly 2,000-3,500 words. Tables over prose. Use these sec
 What the system is in one sentence, what v1 covers, the main open item. ≤5 sentences.
 
 ## 2. Preconditions and scope
-- **Preconditions** (only if the verdict is Validate first or similar): gates from the concept that must pass before these requirements are acted on.
+- **Preconditions** (only if the verdict is Validate first or similar): gates from the concept that must pass before these requirements are acted on, and the validations that assumed targets point to (`assumed → P-n`). One item each: `- **P-n.** <gate or validation>. Criterion: <what passes>.`; a dropped one stays as `- **P-n (withdrawn).** …`.
 - **In v1:** capabilities covered.
 - **Out of v1 (Won't):** deliberately postponed or excluded, one line each with a reason.
 
@@ -52,7 +52,7 @@ Users, volume, growth, peaks and data sizes, in order-of-magnitude terms, each w
 List concept items with no requirement as **uncovered** and explain (deliberately out, or a gap). List requirements with no concept source as **orphans** and justify or cut them.
 
 ## 10. Conflicts, risks and open questions
-Ranked. Conflicting requirements and trade-offs awaiting a decision, assumed targets that could break the design if wrong, issues found in the concept. For each: why it matters and the cheapest way to resolve it.
+Ranked. Conflicting requirements and trade-offs awaiting a decision, assumed targets that could break the design if wrong, issues found in the concept. For each: why it matters and the cheapest way to resolve it. One numbered item each: `1. **Q-n.** <title>. …` (Latin Q; later documents cite them as `Q-n`).
 
 ## 11. Deferred to design
 One line per implementation-level idea that came up, tagged with the target stage (`→ architecture`, `→ contracts`).

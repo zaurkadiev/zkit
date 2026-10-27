@@ -7,6 +7,8 @@ Usage: check_resilience.py <project-dir> [--update]
 Model contract (resilience/model.py): ASSUMPTIONS = {"RA-1": {"label","unit","best","expected","worst"}},
   compute(a) -> {result: number}, LIMITS = [{"id":"RL-1","metric":result,"op":"<=|>=","limit":number,"req":"NFR-11","label":..}], optional UNITS."""
 import re, sys, os, importlib.util
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "flow", "scripts"))
+from ids import rx
 
 d = next((a for a in sys.argv[1:] if not a.startswith("--")), "docs/zkit")
 update = "--update" in sys.argv
@@ -70,8 +72,8 @@ def tables(t, idpat):
     return rows
 col = lambda r, pat: next((v for h, v in r.items() if re.search(pat, h)), "")
 body = re.sub(r"<!-- model:begin -->.*?<!-- model:end -->", "", doc, flags=re.S)
-F, T, O, DR = tables(body, r"F-\d+$"), tables(body, r"T-\d+$"), tables(body, r"O-\d+$"), tables(body, r"DR-\d+$")
-dA, dL = tables(body, r"RA-\d+$"), tables(body, r"RL-\d+$")
+F, T, O, DR = tables(body, rx("F") + r"$"), tables(body, rx("T") + r"$"), tables(body, rx("O") + r"$"), tables(body, rx("DR") + r"$")
+dA, dL = tables(body, rx("RA") + r"$"), tables(body, rx("RL") + r"$")
 reqs = {}
 if req is not None:
     hdr = None
@@ -98,20 +100,20 @@ for r in F + T:
     i = r["_id"]
     for k, pat in (("target", r"target|цел|объект"), ("failure/threat", r"fail|threat|отказ|угроз"), ("severity", r"severity|серьёз|тяжест"), ("response", r"response|реакц"), ("detection", r"detect|обнаруж")):
         if not col(r, pat).strip(" —-"): err("%s has no %s" % (i, k))
-    tg = re.findall(r"\b(?:B|I|X|E)-\d+\b", col(r, r"target|цел|объект")); targets |= set(tg)
+    tg = re.findall(r"\b" + rx("B", "I", "X", "E") + r"\b", col(r, r"target|цел|объект")); targets |= set(tg)
     if not tg: err("%s names no target (B-/I-/X-/E- id)" % i)
     sv = col(r, r"severity|серьёз|тяжест").strip()
     if not re.match(r"(H|M|L|выс|сред|низ)", sv, re.I): warn("%s: severity should be H / M / L" % i)
-    for o in re.findall(r"O-\d+", col(r, r"detect|обнаруж")):
+    for o in re.findall(rx("O"), col(r, r"detect|обнаруж")):
         if o not in okeys: err("%s cites detection %s, not in the observability table" % (i, o))
-    if not re.search(r"O-\d+", col(r, r"detect|обнаруж")): warn("%s has no detection signal (O-n): it would fail silently" % i)
-    sr = re.findall(r"(?:FR|NFR|C)-\d+", col(r, r"serves|обслужив|требован"))
+    if not re.search(rx("O"), col(r, r"detect|обнаруж")): warn("%s has no detection signal (O-n): it would fail silently" % i)
+    sr = re.findall(rx("FR", "NFR", "C"), col(r, r"serves|обслужив|требован"))
     if not sr: warn("%s protects no requirement" % i)
     for s in sr:
         if reqs and s not in reqs: err("%s cites %s, not in requirements" % (i, s))
     if re.match(r"(H|выс)", sv, re.I) and i not in drills_for: err("%s is high severity and has no drill (DR-n covering it)" % i)
 for r in O:
-    if not re.search(r"B-\d+", col(r, r"where|emitted|источн|част")): warn("%s names no emitting part" % r["_id"])
+    if not re.search(rx("B"), col(r, r"where|emitted|источн|част")): warn("%s names no emitting part" % r["_id"])
 for r in DR:
     for k, pat in (("how", r"how|как|способ"), ("success criterion", r"success|критер")):
         if not col(r, pat).strip(" —-"): err("%s has no %s" % (r["_id"], k))
@@ -120,10 +122,10 @@ for r in DR:
 
 # ---------- coverage of the architecture, contracts and data
 if arch is not None:
-    allt = set(re.findall(r"^\|\s*((?:B|I)-\d+)\s*\|", arch, re.M))
+    allt = set(re.findall(r"^\|\s*(" + rx("B", "I") + r")\s*\|", arch, re.M))
 else: allt = set(); warn("no architecture.md: coverage of parts and interfaces cannot be checked")
-allt |= set(re.findall(r"^\|\s*(X-\d+)\s*\|", ct or "", re.M)) | set(re.findall(r"^\|\s*(E-\d+)\s*\|", dt or "", re.M))
-na = set(re.findall(r"\b(?:B|I|X|E)-\d+\b", "\n".join(v for k, v in re.findall(r"(?ims)^## (\d*\.?\s*(?:not applicable|не применим|вне реестра)[^\n]*)\n(.*?)(?=^## |\Z)", doc))))
+allt |= set(re.findall(r"^\|\s*(" + rx("X") + r")\s*\|", ct or "", re.M)) | set(re.findall(r"^\|\s*(" + rx("E") + r")\s*\|", dt or "", re.M))
+na = set(re.findall(r"\b" + rx("B", "I", "X", "E") + r"\b", "\n".join(v for k, v in re.findall(r"(?ims)^## (\d*\.?\s*(?:not applicable|не применим|вне реестра)[^\n]*)\n(.*?)(?=^## |\Z)", doc))))
 unc = sorted(t for t in allt if t not in targets and t not in na)
 for t in unc: err("%s is not a target of any fault or threat row and is not listed as not applicable (with a reason)" % t)
 
@@ -140,8 +142,8 @@ if A:
 accepted = {}
 for r in dL:
     rq = col(r, r"requirement|требован")
-    if reqs and not any(x in reqs for x in re.findall(r"(?:FR|NFR|C)-\d+", rq)): err("%s cites no existing requirement" % r["_id"])
-    accepted[r["_id"]] = bool(re.search(r"D-\d+", col(r, r"accepted|принят")))
+    if reqs and not any(x in reqs for x in re.findall(rx("FR", "NFR", "C"), rq)): err("%s cites no existing requirement" % r["_id"])
+    accepted[r["_id"]] = bool(re.search(rx("D"), col(r, r"accepted|принят")))
 for l in LIM:
     if l["id"] in bad["expected"] and not accepted.get(l["id"]): err("%s fails in the EXPECTED scenario and has no accepting decision (D-n)" % l["id"])
     elif l["id"] in bad["worst"] and not accepted.get(l["id"]): warn("%s fails in the WORST scenario: record the risk or an accepting decision" % l["id"])

@@ -43,6 +43,7 @@ For in-process and embedded systems (otherwise write "not applicable: <reason>")
 Per class: the entities in it, why this class (access pattern, consistency, cost), the total volume and growth against the resource-math limits.
 
 ## 7. Findings and consequences
+Number the items plainly (`1.`, `2.`); id-like labels (`F-1`, `G-1`) belong to the id registry (`flow/scripts/ids.py`) and fail its check.
 Requirement issues found (history vs deletion, speed vs consistency, retention vs cost) with the decision taken or pending. Constraints for the architecture, tagged `→ architecture: …`, `→ mechanics: …`, `→ resilience: …`.
 
 ## 8. Risks, assumptions and open questions

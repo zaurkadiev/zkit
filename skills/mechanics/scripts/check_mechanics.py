@@ -4,6 +4,8 @@ Usage: check_mechanics.py <project-dir>   (exit 1 on ERROR). Stdlib only.
 Executable model contract: mechanics/model_<slug>.py defines run(broken=False) -> list of violation strings (empty = invariants hold);
 run(broken=True) must return at least one violation (a check that cannot fail proves nothing)."""
 import re, sys, os, glob, importlib.util
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "flow", "scripts"))
+from ids import rx
 
 d = next((a for a in sys.argv[1:] if not a.startswith("--")), "docs/zkit")
 rdp = lambda n: open(os.path.join(d, n), encoding="utf-8").read() if os.path.exists(os.path.join(d, n)) else None
@@ -29,11 +31,11 @@ def rows_of(t, first):
     return rows
 col = lambda r, pat: next((v for h, v in r.items() if re.search(pat, h)), "")
 
-reqs = set(re.findall(r"^\|\s*((?:FR|NFR|C)-\d+)\s*\|", req or "", re.M))
-parts = set(re.findall(r"^\|\s*(B-\d+)\s*\|", arch or "", re.M))
-ifaces = set(re.findall(r"^\|\s*(I-\d+)\s*\|", arch or "", re.M))
+reqs = set(re.findall(r"^\|\s*(" + rx("FR", "NFR", "C") + r")\s*\|", req or "", re.M))
+parts = set(re.findall(r"^\|\s*(" + rx("B") + r")\s*\|", arch or "", re.M))
+ifaces = set(re.findall(r"^\|\s*(" + rx("I") + r")\s*\|", arch or "", re.M))
 if arch is None: warn("no architecture.md: parts cannot be checked")
-MC = rows_of(sec("механизм", "mechanism"), r"MC-\d+$")
+MC = rows_of(sec("механизм", "mechanism"), rx("MC") + r"$")
 if not MC: err("no mechanism rows (MC-n)")
 seen = set()
 for r in MC:
@@ -42,16 +44,16 @@ for r in MC:
     seen.add(m)
     for k, pat in (("part", r"part|част"), ("kind", r"kind|вид|тип"), ("verified by", r"verified|провер"), ("risk", r"risk|риск")): 
         if not col(r, pat).strip(" —-"): err("%s has no %s" % (m, k))
-    for b in re.findall(r"B-\d+", col(r, r"part|част")):
+    for b in re.findall(rx("B"), col(r, r"part|част")):
         if parts and b not in parts: err("%s names %s, not a part of the architecture" % (m, b))
-    sv = re.findall(r"(?:FR|NFR|C)-\d+", col(r, r"serves|обслужив|требован"))
+    sv = re.findall(rx("FR", "NFR", "C"), col(r, r"serves|обслужив|требован"))
     if not sv: err("%s serves no requirement" % m)
     for s in sv:
         if reqs and s not in reqs: err("%s serves %s, which is not in requirements" % (m, s))
     if not re.search(r"^(H|M|L|высок|средн|низк)", col(r, r"risk|риск").strip(), re.I): warn("%s: risk should be H / M / L" % m)
 
 # every part has a mechanism or a stated reason it is trivial
-covered = set(b for r in MC for b in re.findall(r"B-\d+", col(r, r"part|част")))
+covered = set(b for r in MC for b in re.findall(rx("B"), col(r, r"part|част")))
 triv = sec("тривиальн", "trivial")
 for b in sorted(parts):
     if b not in covered and not re.search(r"\b%s\b" % b, triv): err("part %s has neither a mechanism nor a line in 'trivial parts' saying why" % b)
@@ -79,7 +81,7 @@ for nm in modres:
 
 # state machines: tables with State | Event | ... | Next state
 nstate = 0
-for m in re.finditer(r"(?ms)^#{2,4}[^\n]*?(MC-\d+)[^\n]*\n(.*?)(?=^#{2,4} |\Z)", doc):
+for m in re.finditer(r"(?ms)^#{2,4}[^\n]*?(" + rx("MC") + r")[^\n]*\n(.*?)(?=^#{2,4} |\Z)", doc):
     tid, body = m.group(1), m.group(2)
     trs = rows_of(body, r".+")
     trs = [r for r in trs if any("next" in h or "следующ" in h for h in r)]
@@ -109,7 +111,7 @@ for m in re.finditer(r"(?ms)^#{2,4}[^\n]*?(MC-\d+)[^\n]*\n(.*?)(?=^#{2,4} |\Z)",
 
 # internal contracts specs listed
 isec = sec("внутренн", "internal")
-for i in sorted(set(re.findall(r"\bI-\d+\b", isec))):
+for i in sorted(set(re.findall(r"\b" + rx("I") + r"\b", isec))):
     if ifaces and i not in ifaces: err("internal contract list names %s, which is not an interface of the architecture" % i)
 for f in re.findall(r"contracts/[\w.-]+\.(?:yaml|yml|md)", isec):
     if not os.path.exists(os.path.join(d, f)): err("internal contract spec %s does not exist" % f)
