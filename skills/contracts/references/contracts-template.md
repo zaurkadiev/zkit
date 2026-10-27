@@ -24,6 +24,7 @@ The boundaries in ≤5 sentences: how many, which are consumed and which publish
 Error model, identifiers, time and money formats, pagination, versioning and compatibility rule, authentication in one line each — what every spec inherits so it is not repeated.
 
 ## 4. Findings and consequences
+Number the items plainly (`1.`, `2.`); id-like labels (`F-1`, `G-1`) belong to the id registry (`flow/scripts/ids.py`) and fail its check.
 - Requirement issues found (a counterparty cannot deliver, a quota below the load) with the decision taken or pending.
 - Constraints for the architecture, tagged `→ architecture: …`, `→ data: …`, `→ mechanics: …`.
 

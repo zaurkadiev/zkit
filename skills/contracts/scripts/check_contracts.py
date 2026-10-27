@@ -5,6 +5,8 @@ Needs PyYAML to read the specs and jsonschema to validate examples; without them
 Spec extensions: x-boundary (X-n), x-direction (consumed|published), x-verified {status: verified|unverified, source},
 x-limits [L-n of resource-math], x-serves [FR/NFR/C ids]; non-GET operations carry x-idempotency."""
 import re, sys, os, glob, json
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "flow", "scripts"))
+from ids import rx
 
 d = next((a for a in sys.argv[1:] if not a.startswith("--")), "docs/zkit")
 rdp = lambda n: open(os.path.join(d, n), encoding="utf-8").read() if os.path.exists(os.path.join(d, n)) else None
@@ -27,7 +29,7 @@ def tables(t, idpat):
         if hdr and re.match(idpat, c[0]): rows.append(dict({h: (c[i] if i < len(c) else "") for i, h in enumerate(hdr)}, _id=c[0]))
     return rows
 col = lambda r, pat: next((v for h, v in r.items() if re.search(pat, h)), "")
-ids_of = lambda s: set(re.findall(r"(?:FR|NFR|C)-\d+", s))
+ids_of = lambda s: set(re.findall(rx("FR", "NFR", "C"), s))
 
 reqs = {}
 if req is not None:
@@ -40,7 +42,7 @@ if req is not None:
             i = next((n for n, h in enumerate(hdr) if re.search(r"приоритет|priority", h)), None)
             reqs[c[0]] = c[i] if i is not None and i < len(c) else ""
 else: warn("no requirements.md: serving requirements cannot be checked")
-limits = set(re.findall(r"\bL-\d+\b", rm)) if rm else set()
+limits = set(re.findall(r"\b" + rx("L") + r"\b", rm)) if rm else set()
 
 rows = tables(doc, r"[XI]-\d+$")
 if not rows: err("no boundary rows (X-n) in contracts.md")
@@ -60,7 +62,7 @@ for r in rows:
     if not spec or not os.path.exists(path): err("%s: spec file '%s' does not exist" % (x, spec)); continue
     consumed = bool(re.search(r"consumed|потребл", direction)); internal = bool(re.search(r"internal|внутренн", direction))
     ver = col(r, r"verif|провер")
-    if consumed and (not re.search(r"verified|проверен|R-\d+", ver, re.I) or re.search(r"unverified|не провер", ver, re.I)):
+    if consumed and (not re.search(r"verified|проверен|" + rx("R"), ver, re.I) or re.search(r"unverified|не провер", ver, re.I)):
         warn("%s is consumed and not verified against the counterparty's documentation" % x)
         if any(reqs.get(s) == "Must" for s in serves): unver_must.append(x)
     if path.endswith(".md"):
@@ -80,7 +82,7 @@ for r in rows:
     if consumed and not S.get("x-limits") and rm is not None: warn("%s: consumed boundary with no x-limits (quota, rate, price, latency of the counterparty)" % x)
     for s in S.get("x-serves") or []:
         if reqs and s not in reqs: err("%s: x-serves cites %s, not in requirements" % (x, s))
-    if re.search(r"\bB-\d+\b", json.dumps(S, default=str)): warn("%s: %s mentions architecture parts (B-n); contracts are written before them" % (x, spec))
+    if re.search(r"\b" + rx("B") + r"\b", json.dumps(S, default=str)): warn("%s: %s mentions architecture parts (B-n); contracts are written before them" % (x, spec))
     # structure per standard
     if "openapi" in S:
         if not (S.get("info") or {}).get("version"): err("%s: info.version missing" % x)

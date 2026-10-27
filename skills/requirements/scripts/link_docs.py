@@ -11,19 +11,23 @@ Layout:
 Usage:
   link_docs.py <project-dir>          turn mentions of D-n, [R-n] and 'concept §n' into links; rebuild the
                                       back-links under each decision, 'Используется в' in research reports and
-                                      the summary table at the top of decisions.md
+                                      the summary table at the top of decisions.md; then verify every cited id
+                                      against the registry IDS below (exit 1 on errors)
   link_docs.py <zkit-root> --migrate --project <name>
                                       move an older layout (flat files, numbered files or folders, one file per
                                       decision) into <zkit-root>/<name>/ and repair the links
 """
 import os, re, sys, glob, shutil
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "flow", "scripts"))
+from ids import IDS, rx   # the id registry: one owner document per prefix
 
 STAGES = ["concept", "requirements", "resource-math", "ux", "contracts", "data", "architecture", "mechanics", "resilience", "roadmap"]   # later stages: add here and to stage_docs below
+ROW_IDS = rx(*[k for k in IDS if k not in {"D", "R", "P", "Q"}])   # ids defined as table rows
 rd = lambda p: open(p, encoding="utf-8").read()
 def wr(p, s):
     os.makedirs(os.path.dirname(p) or ".", exist_ok=True); open(p, "w", encoding="utf-8").write(s)
 def rel(frm, to): return os.path.relpath(to, os.path.dirname(frm)).replace(os.sep, "/")
-ENTRY = re.compile(r'(?:<a id="D-\d+"></a>\n)?^###\s*D-(\d+)\s*(?:\(([^)]*)\))?\s*:\s*(.+?)\n(.*?)(?=^(?:<a id="D-\d+"></a>\n)?###\s*D-|\Z)', re.M | re.S)
+ENTRY = re.compile(r'(?:<a id="' + rx("D") + r'"></a>\n)?^###\s*D-(\d+)\s*(?:\(([^)]*)\))?\s*:\s*(.+?)\n(.*?)(?=^(?:<a id="' + rx("D") + r'"></a>\n)?###\s*D-|\Z)', re.M | re.S)
 def entry_text(n, title, status, date, body):
     return '<a id="D-%s"></a>\n### D-%s: %s\n> **Статус:** %s · **Дата:** %s\n\n%s\n' % (n, n, title.strip(), status, date, body.strip())
 
@@ -64,7 +68,7 @@ if "--migrate" in sys.argv:
             m = re.match(r"#\s*D-(\d+):\s*(.*?)\n+> \*\*Статус:\*\*\s*(.*?)\s*·\s*\*\*Дата:\*\*\s*([\d—-]+)\n+(.*)", t, re.S)
             if m:
                 n, title, status, date, body = m.groups()
-                entries[int(n)] = entry_text(n, title, re.sub(r"\[(D-\d+)\]\(D-(\d+)\.md\)", r"[\1](#D-\2)", status), date, body)
+                entries[int(n)] = entry_text(n, title, re.sub(r"\[(" + rx("D") + r")\]\(D-(\d+)\.md\)", r"[\1](#D-\2)", status), date, body)
         shutil.rmtree(os.path.join(root, "decisions"))
     if entries:
         wr(os.path.join(d, "decisions.md"), "# Решения: %s\n\n" % name + "\n".join(entries[k] for k in sorted(entries)))
@@ -84,7 +88,7 @@ rmp_p = P("roadmap.md")
 ct_p = P("contracts.md")
 dt_p = P("data.md")
 if_p = P("ux.md")
-rfiles = {re.match(r"R-\d+", os.path.basename(f)).group(0): f for f in glob.glob(P("research", "R-*.md"))}
+rfiles = {re.match(rx("R"), os.path.basename(f)).group(0): f for f in glob.glob(P("research", "R-*.md"))}
 stage_docs = [p for p in (concept_p, req_p, rm_p, if_p, ct_p, dt_p, hld_p, mc_p, rs_p, rmp_p) if os.path.exists(p)]
 
 # ---------- repair links that no longer resolve (after a migration or a rename)
@@ -98,7 +102,7 @@ def repair(f):
         new = (dec_p, "#D-" + dm.group(1)) if dm else None
         for key, path in (("decisions", dec_p), ("concept", concept_p), ("requirements", req_p)):
             if new is None and key in tgt: new = (path, frag)
-        rm = re.search(r"R-\d+", b)
+        rm = re.search(rx("R"), b)
         if new is None and rm and rm.group(0) in rfiles: new = (rfiles[rm.group(0)], frag)
         if new is None or not os.path.exists(new[0]): return m.group(0)
         return "%s(%s%s)" % (m.group(1), rel(f, new[0]), new[1])
@@ -119,8 +123,8 @@ def linkify(path):
         if line.startswith("```"): fence = not fence
         if fence or line.startswith("#") or line.startswith(">") or line.startswith("<a id"):
             out.append(line); continue
-        line = re.sub(r"(?<![\w\[/(#-])(D-\d+)(?![\w\]-])(?!\]\()", lambda m: "[%s](%s#%s)" % (m.group(1), rel(path, dec_p), m.group(1)) if m.group(1) in ids else m.group(0), line)
-        line = re.sub(r"\[(R-\d+)\](?!\()", lambda m: "[%s](%s)" % (m.group(1), rel(path, rfiles[m.group(1)])) if m.group(1) in rfiles else m.group(0), line)
+        line = re.sub(r"(?<![\w\[/(#-])(" + rx("D") + r")(?![\w\]-])(?!\]\()", lambda m: "[%s](%s#%s)" % (m.group(1), rel(path, dec_p), m.group(1)) if m.group(1) in ids else m.group(0), line)
+        line = re.sub(r"\[(" + rx("R") + r")\](?!\()", lambda m: "[%s](%s)" % (m.group(1), rel(path, rfiles[m.group(1)])) if m.group(1) in rfiles else m.group(0), line)
         if path != concept_p and os.path.exists(concept_p):
             line = re.sub(r"(?<![\[\w])((?:concept|концепт)\s*§\s*\d+(?:[,\s]*§\s*\d+)*)(?!\]\()", lambda m: "[%s](%s)" % (m.group(1), rel(path, concept_p)), line, flags=re.I)
         out.append(line)
@@ -133,9 +137,9 @@ def labels(path):
     for line in rd(path).split("\n"):
         h = re.match(r"#+\s*(.*)", line)
         if h: head = h.group(1).strip(); continue
-        idm = re.match(r"\|\s*((?:FR|NFR|C|B|I|S|A|L|X|E|M|MC|F|T|O|DR|RA|RL|PH|G|TK|EP|U|J)-\d+)\s*\|", line) or re.match(r"\s*(?:[-*]|\d+\.)\s*\*\*([PWК]-\d+)\.", line)
+        idm = re.match(r"\|\s*(%s)\s*\|" % ROW_IDS, line) or re.match(r"\s*(?:[-*]|\d+\.)\s*\*\*(" + rx("P", "Q") + r")\.", line)
         label = idm.group(1) if idm else re.sub(r"\s+", " ", head)[:60] or "—"
-        for k in set(re.findall(r"\b(D-\d+)\b", line)) | set("R-" + x for x in re.findall(r"\bR-(\d+)\b", line)):
+        for k in set(re.findall(r"\b(" + rx("D") + r")\b", line)) | set("R-" + x for x in re.findall(r"\bR-(\d+)\b", line)):
             res.setdefault(k, []).append(label)
     return res
 mentions = {}
@@ -167,3 +171,39 @@ for key, f in rfiles.items():
     refs = links_for(key, f)
     wr(f, body + "\n\n## Используется в\n<!-- собирается link_docs.py, не править вручную -->\n" + ("\n".join("- " + r for r in refs) or "- пока нигде не используется") + "\n")
 print("linked: %s — %d stage documents, %d decisions, %d reports" % (os.path.basename(os.path.abspath(d)), len(stage_docs), len(d_ids()), len(rfiles)))
+
+# ---------- 5. verify ids against the registry: cited ids must exist in their owner, validations must be planned
+owner_p = {"requirements.md": req_p, "resource-math.md": rm_p, "ux.md": if_p, "contracts.md": ct_p, "data.md": dt_p,
+           "architecture.md": hld_p, "mechanics.md": mc_p, "resilience.md": rs_p, "roadmap.md": rmp_p}
+nofence = lambda t: re.sub(r"(?ms)^```.*?^```", "", t)
+texts = {f: nofence(rd(f)) for f in stage_docs + glob.glob(P("roadmap", "**", "*.md"), recursive=True) + list(rfiles.values()) + ([dec_p] if os.path.exists(dec_p) else [])}
+BULLET = r"^\s*(?:[-*]|\d+\.)\s*\*\*(%s)-(\d+)(?:\.| \()"
+defined = {"D": d_ids(), "R": set(rfiles)}
+for pre, (own, _) in IDS.items():
+    if own in owner_p and os.path.exists(owner_p[own]):
+        defined[pre] = set(re.findall(r"^\|\s*(%s-\d+)\s*\|" % pre, texts[owner_p[own]], re.M))
+        if pre in ("P", "Q"): defined[pre] = set("%s-%s" % m for m in re.findall(BULLET % pre, texts[owner_p[own]], re.M))
+validations = defined.get("P", set())
+cited = {}
+for f, t in texts.items():
+    for pre, n in re.findall(r"(?<![\w-])(%s)-(\d+)\b" % "|".join(sorted(IDS, key=len, reverse=True)), t):
+        cited.setdefault("%s-%s" % (pre, n), set()).add(os.path.relpath(f, d))
+errs, warns = [], []
+for i, fs in sorted(cited.items()):
+    pre = i.split("-")[0]
+    if pre not in defined: warns.append("%s cited, but its owner %s does not exist yet" % (i, IDS[pre][0]))
+    elif i not in defined[pre]: errs.append("%s (%s) is cited in %s but not defined in %s" % (i, IDS[pre][1], ", ".join(sorted(fs)), IDS[pre][0]))
+if os.path.exists(rmp_p):
+    plan = "\n".join(t for f, t in texts.items() if f == rmp_p or f.startswith(P("roadmap") + os.sep))
+    warns += ["precondition %s is planned by no task or epic in roadmap (fine only if already done)" % v for v in sorted(validations) if not re.search(r"\b%s\b" % v, plan)]
+for f in stage_docs:
+    rf = os.path.relpath(f, d)
+    for x in sorted(set(re.findall(r"^\|\s*([A-ZА-ЯЁ]{1,3})-\d+\s*\|", texts[f], re.M)) - set(IDS)):
+        warns.append("%s: prefix %s- is not in the id registry (flow/scripts/ids.py)" % (rf, x))
+    for x, n in re.findall(BULLET % r"[A-ZА-ЯЁ]{1,3}", texts[f], re.M):
+        if x not in defined:   # a local label: unregistered prefix, or one whose owner does not exist yet (a registered owner checks the rest above)
+            errs.append("%s: list label %s-%s is not an id of the registry; number findings and gaps plainly (1., 2.)" % (rf, x, n))
+for w in dict.fromkeys(warns): print("WARN", w)
+for e in errs: print("ERROR", e)
+print("ids: %d cited, %d errors" % (len(cited), len(errs)))
+sys.exit(1 if errs else 0)

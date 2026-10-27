@@ -65,7 +65,7 @@ A requirement earns its place by being checkable. For every one:
 - **Prioritized (MoSCoW):** Must / Should / Could for v1, plus **Won't (v1)** for things deliberately postponed — recorded so that "not now" doesn't later look like "forgotten". If more than about a third are Must, the v1 scope is probably too big; say so.
 - **Traced:** source (concept section, decision `D-n`, interview answer) and evidence tag. Targets that are *assumed* get a way to validate them (pilot, measurement, interview).
 - **Consistent:** look for pairs that can't both hold (cheap vs. independently verified results, instant vs. human approval) and surface them as an explicit trade-off question instead of picking silently.
-- **Stable IDs:** `FR-n` functional, `NFR-n` non-functional (with a category), `C-n` constraints. IDs never get reused or renumbered on revision; dropped ones are marked withdrawn. Later stages and tasks link to them.
+- **Stable IDs:** `FR-n` functional, `NFR-n` non-functional (with a category), `C-n` constraints, `P-n` preconditions and validations, `Q-n` conflicts, risks and open questions. IDs never get reused or renumbered on revision; dropped ones are kept and marked withdrawn, never deleted (a later citation of a deleted id fails `link_docs.py`). Later stages and tasks link to them.
 
 ### 5. Check consistency with the concept — before declaring it done
 The two documents must agree, and agreement is verified, not asserted. Two checks, in this order:

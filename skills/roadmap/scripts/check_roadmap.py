@@ -2,10 +2,12 @@
 """Roadmap checker and scheduler for one zkit project. Stdlib only.
 Usage: check_roadmap.py <project-dir> [--update]
   Parses roadmap.md (phases PH-n, gates G-n, tasks TK-n, epics EP-n, capacity) and the files roadmap/epics/EP-n-*/epic.md and
-  roadmap/epics/EP-n-*/tasks/TK-n-*.md (one per epic and per task), schedules the work for one developer in
+  roadmap/epics/EP-n-*/tasks/TK-n-*.md (one per epic and per task), schedules the work on one or more workers (Capacity column Workers) in
   best / expected / worst scenarios (dependencies, external waits), checks coverage of earlier documents, and with --update
-  rewrites the generated block between <!-- schedule:begin --> and <!-- schedule:end -->. Exit 1 on ERROR."""
+  rewrites the generated block (table, critical path, lanes, Mermaid graph) between <!-- schedule:begin --> and <!-- schedule:end -->. Exit 1 on ERROR."""
 import re, sys, os, math, glob
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "flow", "scripts"))
+from ids import rx
 
 d = next((a for a in sys.argv[1:] if not a.startswith("--")), "docs/zkit")
 update = "--update" in sys.argv
@@ -29,11 +31,11 @@ def tables(t, idpat):
 col = lambda r, pat: next((v for h, v in r.items() if re.search(pat, h)), "")
 num = lambda s, default=0.0: float(m.group(0)) if (m := re.search(r"\d+(?:[.,]\d+)?", s.replace(",", "."))) else default
 
-PH, G = tables(body, r"PH-\d+$"), tables(body, r"G-\d+$")
-TK, EP = tables(body, r"TK-\d+$"), tables(body, r"EP-\d+$")
+PH, G = tables(body, rx("PH") + r"$"), tables(body, rx("G") + r"$")
+TK, EP = tables(body, rx("TK") + r"$"), tables(body, rx("EP") + r"$")
 CAP = tables(body, r"(best|expected|worst|лучш|ожидаем|худш)")
 # every task belongs to an epic; an epic that has tasks is a container (its hours are the tasks'), one without tasks is scheduled by its own range
-epic_of = {r["_id"]: (re.search(r"EP-\d+", col(r, r"epic|эпик")) or re.search("", "")).group(0) for r in TK}
+epic_of = {r["_id"]: (re.search(rx("EP"), col(r, r"epic|эпик")) or re.search("", "")).group(0) for r in TK}
 eps = {r["_id"] for r in EP}
 for t_, e_ in epic_of.items():
     if not e_: err("%s names no epic (column Epic)" % t_)
@@ -62,10 +64,10 @@ for r in items:
     if ph not in phases: err("%s names phase '%s', which does not exist" % (i, ph))
     if i.startswith("TK") and hrs[1] > 16: warn("%s is %g h expected: split it (detailed tasks are 4-16 h)" % (i, hrs[1]))
     if i.startswith("TK") and not col(r, r"accept|приёмк|критер").strip(" —-"): err("%s has no acceptance criterion" % i)
-    if not re.search(r"(?:FR|NFR|C|L|RL|DR|MC|D|E|X|I|B|S|G)-\d+|spike|P-\d", col(r, r"serves|source|обслужив|источник|requirement|требован"), re.I): warn("%s traces to no requirement, limit, drill or decision" % i)
+    if not re.search((rx("FR", "NFR", "C", "L", "RL", "DR", "MC", "D", "E", "X", "I", "B", "S", "G") + r"|spike|" + rx("P", num=r"\d")), col(r, r"serves|source|обслужив|источник|requirement|требован"), re.I): warn("%s traces to no requirement, limit, drill or decision" % i)
 dep = {}
 for r in items:
-    raw = re.findall(r"(?:TK|EP)-\d+", col(r, r"depend|завис"))
+    raw = re.findall(rx("TK", "EP"), col(r, r"depend|завис"))
     for x in raw:
         if x not in known and x not in containers: err("%s depends on %s, which does not exist" % (r["_id"], x))
     dep[r["_id"]] = [y for x in raw for y in (kids.get(x) or [x])]   # depending on an epic means depending on all its tasks
@@ -88,24 +90,40 @@ item = {r["_id"]: r for r in items}
 cap = {}
 for r in CAP:
     k = "best" if re.match(r"(best|лучш)", r["_id"], re.I) else "expected" if re.match(r"(expected|ожидаем)", r["_id"], re.I) else "worst"
-    cap[k] = (num(col(r, r"hours|час"), 0.0), col(r, r"deadline|срок"))
+    cap[k] = (num(col(r, r"hours|час"), 0.0), col(r, r"deadline|срок"), max(1, int(num(col(r, r"worker|исполнит"), 1))))
 for k in ("best", "expected", "worst"):
     if k not in cap or cap[k][0] <= 0: err("capacity table has no hours per week for the %s scenario" % k)
+# a gate closes its phase: nothing in a later phase starts before every item of a gated phase is done
+gated = {p for g in G for p in re.findall(rx("PH"), col(g, r"phase|after|фаз"))}
+barrier = {n: [x for x in known if phase_of[x] in gated and phrank.get(phase_of[x], 99) < phrank.get(phase_of[n], 99)] for n in known}
 def schedule(sc):
-    hw = cap.get(sc, (1, ""))[0] or 1; idx = ("best", "expected", "worst").index(sc)
-    free, fin, start = 0.0, {}, {}
-    for n in order:
-        wait = num(col(item[n], r"wait|ожидан"), 0.0)
-        s = max([free] + [fin[x] + wait for x in dep[n] if x in fin])
-        start[n] = s; fin[n] = s + H[n][idx] / hw; free = fin[n]
-    return fin
-fin = {sc: schedule(sc) for sc in ("best", "expected", "worst")}
+    """List scheduling on W workers: repeatedly start the ready item that can start earliest (document order breaks
+    ties). Returns finish and start weeks, the lane of each item and why[n], the item whose finish set n's start."""
+    hw, _, W = cap.get(sc, (1, "", 1)); hw = hw or 1; idx = ("best", "expected", "worst").index(sc)
+    lfree, last = [0.0] * W, [None] * W
+    fin, start, lane, why = {}, {}, {}, {}
+    left = list(order)
+    while left:
+        ready = [n for n in left if all(x in fin for x in dep[n] + barrier[n] if x in known)] or left[:1]   # a cycle (already an ERROR) must not hang
+        best = None
+        for n in ready:
+            wait = num(col(item[n], r"wait|ожидан"), 0.0)
+            pre = max([(fin[x] + wait, x) for x in dep[n] if x in fin] + [(fin[x], x) for x in barrier[n] if x in fin] + [(0.0, None)], key=lambda t: t[0])
+            w = min(range(W), key=lambda k: lfree[k])
+            s = max(pre[0], lfree[w])
+            if best is None or s < best[0] - 1e-9: best = (s, n, w, pre[1] if pre[0] >= lfree[w] else last[w])
+        s, n, w, why[n] = best
+        start[n], fin[n], lane[n] = s, s + H[n][idx] / hw, w
+        lfree[w], last[w] = fin[n], n; left.remove(n)
+    return fin, start, lane, why
+plan = {sc: schedule(sc) for sc in ("best", "expected", "worst")}
+fin = {sc: plan[sc][0] for sc in plan}
 tot = {sc: (max(fin[sc].values()) if fin[sc] else 0.0) for sc in fin}
 hsum = [sum(H[n][i] for n in H) for i in range(3)]
 def when(sc, ph):
     xs = [fin[sc][n] for n in fin[sc] if col(item[n], r"phase|фаз").strip() == ph]
     return max(xs) if xs else 0.0
-rows = ["**Schedule** (one developer; weeks from the start; hours per week best / expected / worst: %s)" % " / ".join("%g" % cap.get(k, (0,))[0] for k in ("best", "expected", "worst")), "",
+rows = ["**Schedule** (workers best / expected / worst: %s; hours per week per worker: %s; weeks from the start)" % (" / ".join("%d" % cap.get(k, (0, "", 1))[2] for k in ("best", "expected", "worst")), " / ".join("%g" % cap.get(k, (0,))[0] for k in ("best", "expected", "worst"))), "",
         "| Phase | Hours best | Hours expected | Hours worst | Done in week (best) | (expected) | (worst) |", "|---|---|---|---|---|---|---|"]
 for p in PH:
     hs = [sum(H[n][i] for n in H if col(item[n], r"phase|фаз").strip() == p["_id"]) for i in range(3)]
@@ -115,14 +133,40 @@ verd = []
 for sc in ("best", "expected", "worst"):
     cell = cap.get(sc, (0, ""))[1]
     dl = num(cell, 0.0) if re.search(r"\d", cell) else 0.0
-    mp = re.search(r"PH-\d+", cell)          # a deadline may refer to the end of one phase, e.g. "52 @PH-3"
+    mp = re.search(rx("PH"), cell)          # a deadline may refer to the end of one phase, e.g. "52 @PH-3"
     end = when(sc, mp.group(0)) if mp else tot[sc]
     what = mp.group(0) if mp else "the whole plan"
     if dl: verd.append("%s: %s done in %.1f weeks vs deadline %g -> %s" % (sc, what, end, dl, "fits" if end <= dl else "DOES NOT FIT by %.1f weeks" % (end - dl)))
     if dl and end > dl and sc == "expected": verd.append("!expected")
 rows += ["", "**Deadline check**", ""] + ["- " + v for v in verd if not v.startswith("!")]
-crit = [n for n in order if abs(fin["expected"][n] - tot["expected"]) < 1e-9]
-rows += ["", "**Critical path (expected, last items)**: " + ", ".join(order[-6:]) if order else ""]
+_, st_e, lane_e, why_e = plan["expected"]
+crit, n = [], max(fin["expected"], key=fin["expected"].get) if fin["expected"] else None
+while n: crit.append(n); n = why_e.get(n)
+rows += ["", "**Critical path (expected)**: " + " → ".join(reversed(crit))]
+if cap.get("expected", (0, "", 1))[2] > 1:
+    rows += ["", "**Lanes (expected; start–finish week)**", ""] + ["- Worker %d: " % (w + 1) + ", ".join("%s %.1f–%.1f" % (x, st_e[x], fin["expected"][x]) for x in sorted((x for x in lane_e if lane_e[x] == w), key=st_e.get)) for w in range(cap["expected"][2])]
+# dependency graph: side-by-side branches run in parallel; colour = worker, thick border = critical path, hexagon = gate
+W_e, mid = cap.get("expected", (0, "", 1))[2], lambda x: x.replace("-", "_")
+g = ["", "**Graph (expected)**: arrows are dependencies, branches side by side run in parallel%s, thick border = critical path." % ("; colour = worker" if W_e > 1 else ""), "", "```mermaid", "flowchart LR"]
+for p in PH:
+    xs = sorted((x for x in known if phase_of[x] == p["_id"]), key=st_e.get)
+    if not xs: continue
+    g.append('  subgraph %s["%s"]' % (mid(p["_id"]), p["_id"]))
+    g += ['    %s["%s%s<br/>wk %.1f–%.1f"]' % (mid(x), x, " · W%d" % (lane_e[x] + 1) if W_e > 1 else "", st_e[x], fin["expected"][x]) for x in xs]
+    g.append("  end")
+used = {phase_of[x] for x in known}
+nxt = {p["_id"]: next((q["_id"] for q in PH[i + 1:] if q["_id"] in used), None) for i, p in enumerate(PH)}
+for gt in G:
+    for p in re.findall(rx("PH"), col(gt, r"phase|after|фаз"))[:1]:
+        if p in used: g.append('  %s --> %s{{"%s"}}' % (mid(p), mid(gt["_id"]), gt["_id"]) + (" --> %s" % mid(nxt[p]) if nxt.get(p) else ""))
+g += ["  %s --> %s" % (mid(x), mid(n)) for n in order for x in dict.fromkeys(dep[n]) if x in known]
+if W_e > 1:
+    pal = ["#dbeafe", "#dcfce7", "#fef3c7", "#fce7f3", "#ede9fe", "#ccfbf1", "#fee2e2", "#e5e7eb"]
+    for w in range(W_e):
+        xs = [mid(x) for x in order if lane_e[x] == w]
+        if xs: g += ["  classDef w%d fill:%s,color:#111" % (w + 1, pal[w % len(pal)]), "  class %s w%d" % (",".join(xs), w + 1)]
+if crit: g += ["  classDef crit stroke:#b91c1c,stroke-width:3px", "  class %s crit" % ",".join(mid(x) for x in crit)]
+rows += g + ["```"]
 block = "\n".join(rows)
 m = re.search(re.escape(B0) + r"(.*?)" + re.escape(B1), doc, re.S)
 if not m: err("no %s ... %s block in roadmap.md" % (B0, B1))
@@ -160,7 +204,7 @@ for x in sorted(set(efile) - eps): warn("epic file %s has no row in the epics ta
 for g in G:
     if not col(g, r"criteria|критер").strip(" —-"): err("%s has no exit criteria" % g["_id"])
     if not col(g, r"if fail|decision|решени|иначе").strip(" —-"): err("%s has no rule for what happens if the criteria fail (continue / change / stop)" % g["_id"])
-    if col(g, r"phase|фаз").strip() not in phases and not re.search(r"PH-\d+", col(g, r"phase|after|фаз")): err("%s is not attached to a phase" % g["_id"])
+    if col(g, r"phase|фаз").strip() not in phases and not re.search(rx("PH"), col(g, r"phase|after|фаз")): err("%s is not attached to a phase" % g["_id"])
 if PH and not G: err("no gates (G-n): a plan without go / change / stop points is a list")
 first = PH[0]["_id"] if PH else ""
 if not any(re.search(r"spike|DR-|validat|measure|замер|провер|пилот|pilot", col(r, r"source|serves|источник|task|задач"), re.I) for r in items if col(r, r"phase|фаз").strip() == first): warn("first phase %s has no spike, drill or validation: risks should come first" % first)
@@ -179,18 +223,18 @@ if req is not None:
             reqs[c[0]] = c[i] if i is not None and i < len(c) else ""
 else: warn("no requirements.md: coverage cannot be checked")
 def expand(s):
-    ids = set(re.findall(r"\b(?:FR|NFR)-\d+\b", s))
-    for a, b in re.findall(r"((?:FR|NFR)-\d+)\s*[…\-–]+\s*(?:(?:FR|NFR)-)?(\d+)", s):
+    ids = set(re.findall(r"\b" + rx("FR", "NFR") + r"\b", s))
+    for a, b in re.findall((r"(" + rx("FR", "NFR") + r")\s*[…\-–]+\s*(?:" + rx("FR", "NFR", num=r"") + r")?(\d+)"), s):
         k, lo = a.split("-")
         if int(b) >= int(lo): ids |= set("%s-%d" % (k, i) for i in range(int(lo), int(b) + 1))
     return ids
 served = expand(text_items)
 unserved = sorted(r for r, p in reqs.items() if p == "Must" and r not in served)
 for r in unserved: err("Must requirement %s is served by no task or epic" % r)
-drills = sorted(set(re.findall(r"^\|\s*(DR-\d+)\s*\|", rs or "", re.M)))
+drills = sorted(set(re.findall(r"^\|\s*(" + rx("DR") + r")\s*\|", rs or "", re.M)))
 undrilled = [x for x in drills if x not in text_items]
 for x in undrilled: err("drill %s of resilience.md is planned by no task or epic" % x)
-for x in sorted(set(re.findall(r"\b(?:FR|NFR)-\d+\b", text_items))):
+for x in sorted(set(re.findall(r"\b" + rx("FR", "NFR") + r"\b", text_items))):
     if reqs and x not in reqs: err("cites %s, not in requirements" % x)
 
 # ---------- counts, drift, status, clarity
@@ -206,7 +250,7 @@ for nm, text in docs:
     if not bd: warn("header has no 'Based on' date for %s" % nm)
     elif rdte and rdte.group(1) > bd.group(1): err("%s (%s) is newer than the date the roadmap is based on (%s)" % (nm, rdte.group(1), bd.group(1)))
 agreed = bool(re.search(r"(?:Status|Статус):\*\*\s*(agreed|согласовано)", head, re.I))
-cuts = bool(re.search(r"D-\d+", " ".join(l for l in body.splitlines() if re.search(r"(?i)deadline|срок|cut|сокращ|accept|принят", l)))) or bool(re.search(r"(?im)^## .*(cut|сокращ)", body))
+cuts = bool(re.search(rx("D"), " ".join(l for l in body.splitlines() if re.search(r"(?i)deadline|срок|cut|сокращ|accept|принят", l)))) or bool(re.search(r"(?im)^## .*(cut|сокращ)", body))
 if misses_deadline and not cuts: err("the expected scenario misses the deadline and the document has neither a cuts section nor an accepting decision (D-n)")
 out.append("CLARITY %d Must requirement(s) unserved; %d drill(s) unplanned; %d epic/task file(s) missing; expected scenario %s the deadline" % (len(unserved), len(undrilled), len(nofile), "misses" if misses_deadline else "meets or has no"))
 if agreed and (unserved or undrilled or nofile or misses_deadline): err("status is 'agreed' but the clarity gate is not passed (see CLARITY line)")

@@ -6,7 +6,7 @@ Give this to a fresh reviewer sub-agent with the paths of the project's `concept
 2. RISK_LAST: the plan builds expensive things before the cheap proofs that could change them; a gate that does not actually stop or change anything; criteria that cannot be measured or do not match the requirements and limits.
 3. UNCOVERED: a Must requirement or v1-scope capability with no task or epic, or served only on paper (the task's acceptance does not test it).
 4. ESTIMATE_BROKEN: ranges that are too narrow for the uncertainty, estimates that contradict earlier hour figures (resource-math builder hours, mechanics/resilience effort), tasks outside 4-16 hours, epics hiding unknown scope, a missing external wait.
-5. DEPENDENCY_WRONG: a missing or impossible dependency, a task that needs something produced later, a critical path hidden by parallel assumptions that one developer cannot meet.
+5. DEPENDENCY_WRONG: a missing or impossible dependency, a task that needs something produced later, a critical path hidden by parallel assumptions the stated number of workers cannot meet, or a needless dependency that serialises tasks which could run in parallel.
 6. CAPACITY_UNREAL: hours per week or deadline that contradict the requirements, constraints or what the developer stated; a schedule that quietly assumes full-time work; no slack for the drills and re-planning.
 7. ACCEPTANCE_WEAK: a task whose acceptance cannot fail or cannot be checked by someone else; a gate rule that gives no decision.
 8. CONTRADICTION: the roadmap contradicts a requirement, architecture decision, mechanics model, resilience gate (e.g. a pilot before the drill that must precede strangers) or a non-superseded decision.

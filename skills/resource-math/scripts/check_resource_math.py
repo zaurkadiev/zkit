@@ -8,6 +8,8 @@ Model contract (resource-math/model.py): ASSUMPTIONS = {"A-1": {"label","unit","
   compute(a: {"A-1": value}) -> {result_name: number}, LIMITS = [{"id":"L-1","metric":result_name,"op":"<=",
   "limit":number,"req":"NFR-3","label":"..."}], optional UNITS = {result_name: unit}."""
 import re, sys, os, importlib.util
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "flow", "scripts"))
+from ids import rx
 
 d = next((a for a in sys.argv[1:] if not a.startswith("--")), "docs/zkit")
 update = "--update" in sys.argv
@@ -71,7 +73,7 @@ def tables(t, idpat):
     return rows
 col = lambda r, pat: next((v for h, v in r.items() if re.search(pat, h)), "")
 body = re.sub(re.escape(B0) + r".*?" + re.escape(B1), "", doc, flags=re.S)
-dA, dL = tables(body, r"A-\d+$"), tables(body, r"L-\d+$")
+dA, dL = tables(body, rx("A") + r"$"), tables(body, rx("L") + r"$")
 for ids, rs, name in ((set(A), dA, "assumption"), (set(l["id"] for l in LIM), dL, "limit")):
     got = [r["_id"] for r in rs]
     for i in got:
@@ -97,8 +99,8 @@ for r in dA:
 accepted = {}
 for r in dL:
     rq = col(r, r"requirement|требован")
-    if reqs and not any(x in reqs for x in re.findall(r"(?:FR|NFR|C)-\d+", rq)): err("%s cites no existing requirement" % r["_id"])
-    accepted[r["_id"]] = bool(re.search(r"D-\d+", col(r, r"accepted|принят")))
+    if reqs and not any(x in reqs for x in re.findall(rx("FR", "NFR", "C"), rq)): err("%s cites no existing requirement" % r["_id"])
+    accepted[r["_id"]] = bool(re.search(rx("D"), col(r, r"accepted|принят")))
 for l in LIM:
     if l["id"] in bad["expected"] and not accepted.get(l["id"]): err("%s fails in the EXPECTED scenario and has no accepting decision (D-n): change the requirement or the design, or record the decision" % l["id"])
     elif l["id"] in bad["worst"] and not accepted.get(l["id"]): warn("%s fails in the WORST scenario: record the risk or an accepting decision" % l["id"])
