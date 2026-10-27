@@ -4,7 +4,8 @@ Usage: check_requirements.py <project-dir>   (e.g. docs/zkit/mvp; exit 1 if any 
 Documents of the project: requirements.md, concept.md, decisions.md, research/R-<n>-<slug>.md."""
 import re, sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "flow", "scripts"))
-from ids import rx
+try: from ids import rx
+except ImportError: sys.exit("ERROR: zkit id registry flow/scripts/ids.py not found: run this script from the zkit plugin, not from a copied skill")
 
 d = sys.argv[1] if len(sys.argv) > 1 else "docs/zkit"
 import glob

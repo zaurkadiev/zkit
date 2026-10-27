@@ -6,7 +6,8 @@ Spec extensions: x-boundary (X-n), x-direction (consumed|published), x-verified 
 x-limits [L-n of resource-math], x-serves [FR/NFR/C ids]; non-GET operations carry x-idempotency."""
 import re, sys, os, glob, json
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "flow", "scripts"))
-from ids import rx
+try: from ids import rx
+except ImportError: sys.exit("ERROR: zkit id registry flow/scripts/ids.py not found: run this script from the zkit plugin, not from a copied skill")
 
 d = next((a for a in sys.argv[1:] if not a.startswith("--")), "docs/zkit")
 rdp = lambda n: open(os.path.join(d, n), encoding="utf-8").read() if os.path.exists(os.path.join(d, n)) else None

@@ -19,7 +19,8 @@ Usage:
 """
 import os, re, sys, glob, shutil
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "flow", "scripts"))
-from ids import IDS, rx   # the id registry: one owner document per prefix
+try: from ids import IDS, rx   # the id registry: one owner document per prefix
+except ImportError: sys.exit("ERROR: zkit id registry flow/scripts/ids.py not found: run this script from the zkit plugin, not from a copied skill")
 
 STAGES = ["concept", "requirements", "resource-math", "ux", "contracts", "data", "architecture", "mechanics", "resilience", "roadmap"]   # later stages: add here and to stage_docs below
 ROW_IDS = rx(*[k for k in IDS if k not in {"D", "R", "P", "Q"}])   # ids defined as table rows
@@ -176,33 +177,54 @@ print("linked: %s — %d stage documents, %d decisions, %d reports" % (os.path.b
 owner_p = {"requirements.md": req_p, "resource-math.md": rm_p, "ux.md": if_p, "contracts.md": ct_p, "data.md": dt_p,
            "architecture.md": hld_p, "mechanics.md": mc_p, "resilience.md": rs_p, "roadmap.md": rmp_p}
 nofence = lambda t: re.sub(r"(?ms)^```.*?^```", "", t)
-texts = {f: nofence(rd(f)) for f in stage_docs + glob.glob(P("roadmap", "**", "*.md"), recursive=True) + list(rfiles.values()) + ([dec_p] if os.path.exists(dec_p) else [])}
+docs_all = stage_docs + glob.glob(P("roadmap", "**", "*.md"), recursive=True) + list(rfiles.values()) + ([dec_p] if os.path.exists(dec_p) else [])
+if "--fix-ids" in sys.argv and os.path.exists(req_p) and re.search(r"\*\*К-\d+", rd(req_p)) and not re.search(r"\*\*Q-\d+", rd(req_p)):
+    for f in docs_all:   # the old requirements template numbered conflicts with Cyrillic К-n; the registry calls them Q-n
+        t = rd(f); u = re.sub(r"(?<![\w-])К-(\d+)\b", r"Q-\1", t)
+        if u != t: wr(f, u); print("fixed: К-n -> Q-n in", os.path.relpath(f, d))
+texts = {f: nofence(rd(f)) for f in docs_all}
 BULLET = r"^\s*(?:[-*]|\d+\.)\s*\*\*(%s)-(\d+)(?:\.| \()"
+LOCAL = r"^(?:\s*(?:[-*]|\d+\.)\s*\*\*|#{1,6}\s*|\|\s*)(%s)-(\d+)\b"   # where a document defines an item: list label, heading, first table cell
+def owner_defs(pre, path):
+    t = texts[path]
+    if pre in ("P", "Q"): return set("%s-%s" % m for m in re.findall(BULLET % pre, t, re.M))
+    found = set(re.findall(r"^\|\s*(%s-\d+)\s*\|" % pre, t, re.M)) | set(re.findall(r"^#{1,6}\s*(%s-\d+)\b" % pre, t, re.M))
+    stem = os.path.splitext(os.path.basename(path))[0]   # models: resource-math/model.py, resilience/model.py, or a legacy *model*.py in the root
+    for py in glob.glob(P(stem, "**", "*.py"), recursive=True) + glob.glob(P("*model*.py")):
+        found |= set(re.findall(r"""["'](%s-\d+)["']\s*:""" % pre, rd(py)))
+    return found
 defined = {"D": d_ids(), "R": set(rfiles)}
 for pre, (own, _) in IDS.items():
-    if own in owner_p and os.path.exists(owner_p[own]):
-        defined[pre] = set(re.findall(r"^\|\s*(%s-\d+)\s*\|" % pre, texts[owner_p[own]], re.M))
-        if pre in ("P", "Q"): defined[pre] = set("%s-%s" % m for m in re.findall(BULLET % pre, texts[owner_p[own]], re.M))
+    if own in owner_p and os.path.exists(owner_p[own]): defined[pre] = owner_defs(pre, owner_p[own])
 validations = defined.get("P", set())
 cited = {}
 for f, t in texts.items():
     for pre, n in re.findall(r"(?<![\w-])(%s)-(\d+)\b" % "|".join(sorted(IDS, key=len, reverse=True)), t):
         cited.setdefault("%s-%s" % (pre, n), set()).add(os.path.relpath(f, d))
+# local numbering: a document other than the owner defines its own items with an id-like prefix -> one finding per document and prefix
+local = {}
+for f in stage_docs:
+    for line in texts[f].splitlines():
+        m = re.match(LOCAL % r"[A-ZА-ЯЁ]{1,3}", line)
+        if not m: continue
+        x, i = m.group(1), "%s-%s" % m.groups()
+        if x in IDS and (owner_p.get(IDS[x][0]) == f or i in defined.get(x, ())): continue   # the owner itself, or a citation of a real id
+        local.setdefault((f, x), []).append(i)
 errs, warns = [], []
+for (f, x), xs in sorted(local.items()):
+    rf, xs = os.path.relpath(f, d), ", ".join(dict.fromkeys(xs))
+    if x in IDS: errs.append("%s numbers its own items %s with the prefix of the registry's %s (owner %s): number them plainly (1., 2.) or cite the owner's ids" % (rf, xs, IDS[x][1], IDS[x][0]))
+    elif re.search(r"(?m)^\s*(?:[-*]|\d+\.)\s*\*\*%s-\d" % x, texts[f]): errs.append("%s labels list items %s with a prefix that is not in the registry: number them plainly (1., 2.)%s" % (rf, xs, "; --fix-ids renames К-n to Q-n" if x == "К" and f == req_p else ""))
+    else: warns.append("%s: prefix %s- (%s) is not in the id registry (flow/scripts/ids.py)" % (rf, x, xs))
+flagged = {i for xs in local.values() for i in xs}
 for i, fs in sorted(cited.items()):
     pre = i.split("-")[0]
+    if i in flagged: continue
     if pre not in defined: warns.append("%s cited, but its owner %s does not exist yet" % (i, IDS[pre][0]))
     elif i not in defined[pre]: errs.append("%s (%s) is cited in %s but not defined in %s" % (i, IDS[pre][1], ", ".join(sorted(fs)), IDS[pre][0]))
 if os.path.exists(rmp_p):
     plan = "\n".join(t for f, t in texts.items() if f == rmp_p or f.startswith(P("roadmap") + os.sep))
     warns += ["precondition %s is planned by no task or epic in roadmap (fine only if already done)" % v for v in sorted(validations) if not re.search(r"\b%s\b" % v, plan)]
-for f in stage_docs:
-    rf = os.path.relpath(f, d)
-    for x in sorted(set(re.findall(r"^\|\s*([A-ZА-ЯЁ]{1,3})-\d+\s*\|", texts[f], re.M)) - set(IDS)):
-        warns.append("%s: prefix %s- is not in the id registry (flow/scripts/ids.py)" % (rf, x))
-    for x, n in re.findall(BULLET % r"[A-ZА-ЯЁ]{1,3}", texts[f], re.M):
-        if x not in defined:   # a local label: unregistered prefix, or one whose owner does not exist yet (a registered owner checks the rest above)
-            errs.append("%s: list label %s-%s is not an id of the registry; number findings and gaps plainly (1., 2.)" % (rf, x, n))
 for w in dict.fromkeys(warns): print("WARN", w)
 for e in errs: print("ERROR", e)
 print("ids: %d cited, %d errors" % (len(cited), len(errs)))
